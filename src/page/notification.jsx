@@ -2,7 +2,7 @@ import React, { Fragment } from "react";
 import { useUserdatacontext } from "../service/context/usercontext";
 import Notify from "../layout/notification/notify";
 import { MdArrowBack as ArrowBack } from "react-icons/md";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -21,7 +21,7 @@ export default function Notification() {
   return (
     <Fragment>
       <Helmet>
-        <title>Notifications | Socialite</title>
+        <title>Notifications | Accel Net</title>
       </Helmet>
       
       {/* Sticky Header */}

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { auth, forget_password, signInWithGoogle } from "../../service/Auth";
-import { FaGoogle as GoogleIcon } from "react-icons/fa";
+import { forget_password } from "../../service/Auth";
+import { useUserdatacontext } from "../../service/context/usercontext";
+import { config } from "../../config/config";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Input } from "../../ui/input";
@@ -13,7 +14,7 @@ const Login = ({ onenter, role }) => {
   const [email, setemail] = useState("");
   const [pass, setpass] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
+  const { userdata } = useUserdatacontext();
   const navigate = useNavigate();
 
   const handelsubmit = async () => {
@@ -25,28 +26,12 @@ const Login = ({ onenter, role }) => {
     }
   };
 
-  const handelgooglesignup = async () => {
-    setIsLoading(true);
-    try {
-      await signInWithGoogle().then(() => {
-        role === "signup"
-          ? navigate("./create-account")
-          : navigate("/home");
-      });
-    } catch (error) {
-      toast.error("Failed to sign in with Google");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Navigate to dashboard when user has full profile (after login)
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(() => {
-      auth.currentUser && navigate("/home");
-    });
-
-    return () => unsubscribe();
-  }, [navigate]);
+    if (userdata) {
+      navigate("/dashboard");
+    }
+  }, [userdata, navigate]);
 
   const isLogin = role === "login";
 
@@ -60,38 +45,13 @@ const Login = ({ onenter, role }) => {
       {/* Header */}
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-bold text-text-primary mb-2">
-          {isLogin ? "Welcome back" : "Join Socialite"}
+          {isLogin ? "Welcome back" : "Join Accel Net"}
         </h1>
         <p className="text-text-secondary text-[15px]">
           {isLogin
             ? "Sign in to continue to your account"
             : "Create your account to get started"}
         </p>
-      </div>
-
-      {/* Google Sign In Button */}
-      <motion.div
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className="mb-6"
-      >
-        <Button
-          onClick={handelgooglesignup}
-          disabled={isLoading}
-          variant="secondary"
-          className="w-full flex items-center justify-center gap-3 py-3"
-          size="lg"
-        >
-          <GoogleIcon className="text-xl" />
-          <span className="capitalize">{role} with Google</span>
-        </Button>
-      </motion.div>
-
-      {/* Divider */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1 h-px bg-border-default" />
-        <span className="text-text-secondary text-sm">or</span>
-        <div className="flex-1 h-px bg-border-default" />
       </div>
 
       {/* Email Form */}
@@ -145,7 +105,7 @@ const Login = ({ onenter, role }) => {
 
         <Button
           type="submit"
-          disabled={isLoading || !email || !pass}
+          disabled={isLoading}
           variant="primary"
           className="w-full mt-2"
           size="lg"
@@ -165,23 +125,25 @@ const Login = ({ onenter, role }) => {
         </p>
       )}
 
-      {/* Sign In/Sign Up Link */}
-      <div className="mt-8 text-center">
-        <p className="text-text-secondary text-[15px] mb-3">
-          {isLogin ? "Don't have an account?" : "Already have an account?"}
-        </p>
-        <Link
-          to={isLogin ? "/" : "/login"}
-          className="text-accent-500 hover:text-accent-400 font-semibold text-[15px] transition-colors"
-        >
-          {isLogin ? "Sign up" : "Sign in"}
-        </Link>
-      </div>
+      {/* Sign In/Sign Up Link – hide "Sign up" when signup page is disabled */}
+      {!(isLogin && config.features.hideSignupPage) && (
+        <div className="mt-8 text-center">
+          <p className="text-text-secondary text-[15px] mb-3">
+            {isLogin ? "Don't have an account?" : "Already have an account?"}
+          </p>
+          <Link
+            to={isLogin ? "/" : "/login"}
+            className="text-accent-500 hover:text-accent-400 font-semibold text-[15px] transition-colors"
+          >
+            {isLogin ? "Sign up" : "Sign in"}
+          </Link>
+        </div>
+      )}
     </motion.section>
   );
 };
 
-Login.PropTypes = {
+Login.propTypes = {
   role: PropTypes.string,
   onenter: PropTypes.func,
 };

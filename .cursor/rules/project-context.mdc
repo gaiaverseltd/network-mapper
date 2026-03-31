@@ -1,0 +1,20 @@
+---
+description: Accel Net app structure, stack, and conventions
+alwaysApply: true
+---
+
+# Accel Net (network-mapper) Project Context
+
+- **App**: Accel Net v4.1.0 — React social media SPA. Repo folder: network-mapper.
+- **Stack**: React 18, Vite, react-router-dom v6, Tailwind CSS, Firebase (Auth, Firestore, Storage), optional Cloud Functions (Node 18, Nodemailer).
+- **Run locally**: `pnpm dev` (Vite at http://localhost:5173). **Full context**: See project root `CONTEXT.md` for structure, routes, data model, theme, and conventions.
+
+## Conventions
+
+- **User state**: `UserDataProvider` in `src/service/context/usercontext.jsx`; use `useUserdatacontext()` for userdata, notifications, saved posts, delete_post, handlesave.
+- **Auth/DB**: `src/service/Auth/index.js` (Firebase init, sign-in/up), `src/service/Auth/database.js` (Firestore/Storage, notifications).
+- **Theme**: `src/config/theme.js` and `tailwind.config.js` — use Tailwind tokens (e.g. `bg-bg-default`, `text-text-primary`, `accent-500`). Dark-first.
+- **Routes**: Defined in `App.jsx`. Protected routes use `<Layout Component={Page} />`; public: `/`, `/login`, `/create-account`.
+- **Env**: Firebase keys via `import.meta.env.VITE_*`; no committed `.env` — document any new vars.
+
+When adding features (routes, components, Firestore usage), follow existing patterns in `src/page/`, `src/component/`, and `src/layout/`.

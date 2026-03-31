@@ -1,55 +1,35 @@
-import React, { Fragment, useEffect, useState } from "react";
+import React, { Fragment, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getpostdata, updatepost } from "../service/Auth/database";
+import { updatepost } from "../service/Auth/database";
+import { usePostData, queryKeys } from "../hooks/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import { Post } from "../component/post";
 import ProgressBar from "@badrap/bar-of-progress";
 import { MdArrowBack as ArrowBack } from "react-icons/md";
 import Addcomment from "../component/addcomment";
 import NotFoundPost from "../layout/post/not-found";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import Loading from "../layout/loading";
 
 export default function Seepost() {
   const { username, postid } = useParams();
-  const [post, setpost] = useState(null);
   const navigate = useNavigate();
-  const [loader, setloader] = useState(true);
-
-  useEffect(() => {
-    const progress = new ProgressBar();
-    const data = async () => {
-      progress.start();
-      try {
-        const data = await getpostdata(username, postid);
-        setpost(data);
-      } catch (error) {
-        console.error("Error fetching post:", error);
-      } finally {
-        setloader(false);
-        progress.finish();
+  const queryClient = useQueryClient();
+  const { data: post, isLoading: loader } = usePostData(username, postid);
+  const cuusetpost = useCallback(
+    async (updatedPost) => {
+      if (updatedPost?.postedby) {
+        await updatepost(updatedPost, updatedPost.postedby);
       }
-    };
-
-    data();
-
-    return () => {
-      progress.finish();
-    };
-  }, [username, postid]);
-
-  useEffect(() => {
-    const data = async () => {
-      if (post) {
-        await updatepost(post, post?.postedby);
-      }
-    };
-    data();
-  }, [post]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.postData(username, postid) });
+    },
+    [queryClient, username, postid]
+  );
 
   return (
     <Fragment>
       <Helmet>
-        <title>Post | {username} | Socialite</title>
+        <title>Post | {username} | Accel Net</title>
         <meta name="description" content={`Post by ${username}`} />
         <link rel="canonical" href={`/profile/${username}/${postid}`} />
       </Helmet>
@@ -76,9 +56,9 @@ export default function Seepost() {
       )}
 
       {!loader && post && (
-        <div className="border-b border-border-default">
+        <div className="border-b border-border-default px-[25%]">
           <Post postdata={post} popup={false} />
-          <Addcomment cuupost={post} cuusetpost={setpost} />
+          <Addcomment cuupost={post} cuusetpost={cuusetpost} />
         </div>
       )}
     </Fragment>

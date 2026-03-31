@@ -1,0 +1,1 @@
+{"projectId":"your-firebase-project-id","mailgun":{"api_key":"YOUR_MAILGUN_API_KEY","domain":"sandbox25e3e4eff380415ba1f48111d617ca82.mailgun.org","from_email":"Accel Net <mailgun@sandbox25e3e4eff380415ba1f48111d617ca82.mailgun.org>","base_url":"https://api.mailgun.net"}}

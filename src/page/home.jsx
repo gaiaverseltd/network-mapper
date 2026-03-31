@@ -1,94 +1,40 @@
-import { Fragment, useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { getallpost } from "../service/Auth/database";
 import { Createpost } from "../component/createpost";
+import { useAllPosts } from "../hooks/queries";
 import { Post } from "../component/post";
 import { auth } from "../service/Auth";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import { useUserdatacontext } from "../service/context/usercontext";
 import Loading from "../layout/loading";
 
 export const Home = () => {
-  const [allpostdata, setallpostdata] = useState(null);
   const [active, setactive] = useState("");
-  const [post, setpost] = useState([]);
   const { userdata } = useUserdatacontext();
-  const [loading, setloading] = useState(false);
+  const { data: allpostdata, isLoading: loading, refetch } = useAllPosts();
 
-  const fetchData = useCallback(async () => {
-    setloading(true);
-    try {
-      const allPosts = await getallpost();
-      const sortedPosts = allPosts.flat().sort((a, b) => {
-        // Sort by date (newest first)
-        const dateA = a.postedat?.toDate?.() || new Date(a.postedat);
-        const dateB = b.postedat?.toDate?.() || new Date(b.postedat);
-        return dateB - dateA;
-      });
-      setallpostdata(sortedPosts);
-      setpost(sortedPosts);
-    } catch (error) {
-      console.error("Error fetching posts:", error);
-    }
-    setloading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Listen for new posts and refresh
-  useEffect(() => {
-    const handlePostCreated = (event) => {
-      const newPost = event.detail;
-      // Optimistically add to top of feed
-      if (newPost && allpostdata) {
-        setallpostdata((prev) => [newPost, ...(prev || [])]);
-        setpost((prev) => {
-          // If filtering by following, check if user follows themselves
-          if (active === "follow" && userdata?.following?.length > 0) {
-            if (userdata.following.includes(newPost.postedby)) {
-              return [newPost, ...(prev || [])];
-            }
-            return prev;
-          }
-          return [newPost, ...(prev || [])];
-        });
-      }
-      // Then refresh from server to ensure consistency
-      setTimeout(() => fetchData(), 500);
-    };
-
-    const handlePostDeleted = (event) => {
-      const { postid } = event.detail;
-      // Optimistically remove from local state
-      setpost((prev) => prev.filter((p) => p.postid !== postid));
-      setallpostdata((prev) => prev?.filter((p) => p.postid !== postid));
-      // Then refresh from server
-      setTimeout(() => fetchData(), 500);
-    };
-
-    window.addEventListener('postCreated', handlePostCreated);
-    window.addEventListener('postDeleted', handlePostDeleted);
-
-    return () => {
-      window.removeEventListener('postCreated', handlePostCreated);
-      window.removeEventListener('postDeleted', handlePostDeleted);
-    };
-  }, [fetchData, allpostdata, active, userdata]);
-
-  useEffect(() => {
-    if (!allpostdata) return;
-    
+  const post = useMemo(() => {
+    if (!allpostdata) return [];
     if (active === "follow" && userdata?.following?.length > 0) {
-      const filteredPosts = allpostdata.filter((post) =>
-        userdata.following.includes(post.postedby),
-      );
-      setpost(filteredPosts);
-    } else {
-      setpost(allpostdata);
+      return allpostdata.filter((p) => userdata.following.includes(p.postedby));
     }
-  }, [allpostdata, active, userdata]);
+    return allpostdata;
+  }, [allpostdata, active, userdata?.following]);
+
+  useEffect(() => {
+    const handlePostCreated = () => {
+      setTimeout(() => refetch(), 500);
+    };
+    const handlePostDeleted = () => {
+      setTimeout(() => refetch(), 500);
+    };
+    window.addEventListener("postCreated", handlePostCreated);
+    window.addEventListener("postDeleted", handlePostDeleted);
+    return () => {
+      window.removeEventListener("postCreated", handlePostCreated);
+      window.removeEventListener("postDeleted", handlePostDeleted);
+    };
+  }, [refetch]);
 
   const handleTabChange = (tab) => {
    
@@ -98,7 +44,7 @@ export const Home = () => {
   return (
     <Fragment>
       <Helmet>
-        <title>Home | Socialite</title>
+        <title>Home | Accel Net</title>
       </Helmet>
       
       {/* Sticky Header */}
@@ -165,7 +111,7 @@ export const Home = () => {
         </div>
           )}
 
-      <div className=" flex flex-col space-y-1 divide-y divide-border-default">
+      <div className="flex flex-col space-y-1 divide-y divide-border-default px-[25%]">
             {post?.map((postarray, index) => (
               <Post key={postarray?.postid || index} postdata={postarray} popup={true} />
             ))}

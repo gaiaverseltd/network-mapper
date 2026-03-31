@@ -101,7 +101,7 @@ export default function Resetpassword({ toggle }) {
           </h2>
           <p className="text-sm text-text-secondary">
             Send a password reset link to your email address to change your
-            Socialite password.
+            Accel Net password.
           </p>
           <Button
             onClick={handlePasswordReset}

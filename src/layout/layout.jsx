@@ -1,32 +1,20 @@
 import Navbar from "../layout/navbar/navbar";
-import Suggestion from "../component/suggestion";
 
-export const Layout = ({ Component, suggetion = true }) => {
+export const Layout = ({ Component }) => {
   return (
     <div className="flex w-full min-h-screen bg-bg-default">
-      {/* Left Sidebar - Navigation */}
+      {/* Left sidebar - 25% (0 width on mobile; mobile nav is fixed) */}
+      <div className="w-0 md:w-1/5 flex-shrink-0 min-w-0 overflow-visible">
         <Navbar />
-      
-      {/* Content Area */}
-      <div className="flex-1 flex min-h-screen ">
-        {/* Main Content */}
-        <main className="flex-1 flex justify-center min-h-screen border-x border-border-default">
-          <div className="w-full max-w-[600px] pt-8 md:pt-0 mt-10">
+      </div>
+      {/* Main content - 75% split 70/30, resizable */}
+      <main className="flex-1 flex min-h-screen min-w-0">
+        <div className="flex-[7] min-w-0 flex justify-center overflow-auto">
+          <div className="w-full pt-8 md:pt-0 mt-10 px-4">
             <Component />
           </div>
-        </main>
-
-        {/* Right Sidebar - Suggestions */}
-        {suggetion && (
-          <aside className="hidden lg:block w-[350px] min-h-screen border-l border-border-default">
-            <div className="sticky top-0 h-screen overflow-y-auto scroll-hidden">
-              <div className="p-4">
-                <Suggestion />
-              </div>
-            </div>
-          </aside>
-        )}
-      </div>
+        </div>
+      </main>
     </div>
   );
 };

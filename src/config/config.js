@@ -5,10 +5,18 @@
 
 import { theme } from "./theme";
 
+const hideSignupPage = import.meta.env.VITE_HIDE_SIGNUP === "true" || import.meta.env.VITE_HIDE_SIGNUP === "1";
+
 export const config = {
+  // Feature flags (from env)
+  features: {
+    /** When true, "/" shows login and signup page is hidden (no "Sign up" link on login). */
+    hideSignupPage: !!hideSignupPage,
+  },
+
   // App metadata
   app: {
-    name: "Socialite",
+    name: "Accel Net",
     description: "Premium social media platform",
     version: "4.1.0",
   },

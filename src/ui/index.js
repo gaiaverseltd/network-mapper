@@ -13,4 +13,5 @@ export { Popupitem } from "./popup";
 export { Popupcenter } from "./Popupcenter";
 export { default as Skeleton } from "./skeleton";
 export { default as Typography } from "./typography";
+export { default as Logo } from "./logo";
 

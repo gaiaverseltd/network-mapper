@@ -7,8 +7,9 @@ import {
   Create_Account,
   get_userdata,
 } from "../service/Auth/database";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { useUserdatacontext } from "../service/context/usercontext";
 import ProgressBar from "@badrap/bar-of-progress";
 import Button from "../ui/button";
@@ -19,15 +20,36 @@ const CreateAccount = () => {
   const navigate = useNavigate();
   const { setuserdata } = useUserdatacontext();
   const [IsUsernameExist, setIsUsernameExist] = useState(false);
+  /** Resolved auth user (from onAuthStateChanged) so submit works in incognito/redirect. */
+  const [authUser, setAuthUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    const data = async () => {
-      if (await check_data_is_exist(auth?.currentUser?.uid)) {
-        navigate("/home");
-      }
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setAuthUser(user);
+      if (!user) setAuthChecked(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (authUser === null && !authChecked) return;
+    if (!authUser) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    if (authChecked) return;
+    let cancelled = false;
+    (async () => {
+      const exists = await check_data_is_exist(authUser.uid);
+      if (cancelled) return;
+      setAuthChecked(true);
+      if (exists) navigate("/dashboard", { replace: true });
+    })();
+    return () => {
+      cancelled = true;
     };
-    data();
-  });
+  }, [authUser, authChecked, navigate]);
 
   const [formdata, setformdata] = useState({
     name: "",
@@ -37,19 +59,37 @@ const CreateAccount = () => {
   });
 
   const checkdata = async () => {
+    const user = authUser ?? auth.currentUser;
+    if (!user) {
+      toast.error("Please wait for sign-in to complete, or sign in again.");
+      return;
+    }
     pregress.start();
-    await Create_Account({
-      email: auth.currentUser.email,
-      uid: auth.currentUser.uid,
-      bio: formdata.bio,
-      name: formdata.name,
-      age: formdata.age,
-      username: formdata.username,
-      profileimg: auth.currentUser.photoURL || null,
-    });
-    setuserdata(await get_userdata(auth?.currentUser?.uid));
-    pregress.finish();
-    navigate("/home");
+    try {
+      const saved = await Create_Account({
+        email: user.email ?? "",
+        uid: user.uid,
+        bio: formdata.bio,
+        name: formdata.name,
+        age: formdata.age,
+        username: formdata.username,
+        profileimg: user.photoURL || null,
+      });
+      if (!saved) {
+        pregress.finish();
+        return;
+      }
+      const data = await get_userdata(user.uid);
+      if (data) {
+        setuserdata(data);
+      }
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Create account error:", err);
+      toast.error("Could not save your account. Please try again.");
+    } finally {
+      pregress.finish();
+    }
   };
 
   const handelchange = (e) => {
@@ -74,10 +114,22 @@ const CreateAccount = () => {
     }
   };
 
+  if (authUser === null && !authChecked) {
+    return (
+      <div className="w-full max-w-2xl mx-auto px-4 py-8 sm:py-12 flex items-center justify-center min-h-[200px]">
+        <p className="text-text-secondary">Loading…</p>
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return null;
+  }
+
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-8 sm:py-12">
       <Helmet>
-        <title>Create account | Socialite</title>
+        <title>Create account | Accel Net</title>
         <meta name="description" content="Create account" />
         <link rel="canonical" href="/Create account" />
         <meta name="robots" content="index, follow" />
@@ -162,7 +214,7 @@ const CreateAccount = () => {
           variant="primary"
           className="w-full mt-4"
           size="lg"
-          disabled={IsUsernameExist}
+          disabled={IsUsernameExist || !authUser}
         >
           Create Account
         </Button>

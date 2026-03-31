@@ -1,11 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 function Notfound() {
   return (
     <div className="flex justify-center align-middle w-full h-screen">
       <Helmet>
-        <title>Not found | socilaite</title>
+        <title>Not found | AccelNet</title>
         <meta name="description" content="login" />
         <link rel="canonical" href="/login" />
         <meta name="robots" content="index, follow" />

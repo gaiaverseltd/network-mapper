@@ -3,18 +3,22 @@ import { MdArrowBack as ArrowBackIcon } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 import { Post } from "./post";
 import { MdEdit as EditIcon } from "react-icons/md";
+import { MdInsertDriveFile as FileIcon } from "react-icons/md";
 import { Popupitem } from "../ui/popup";
 import { useUserdatacontext } from "../service/context/usercontext";
 import {
   Create_notification,
-  get_userdatabyname,
   updateprofileuserdata,
+  updateuserdata,
+  getTagsByCategoryId,
+  getFileNameFromStorageUrl,
 } from "../service/Auth/database";
+import { useUserByUsername, useClassificationTagOptions, useCustomFieldsForProfile } from "../hooks/queries";
+import { useQueries } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { Skeleton } from "../ui/skeleton";
 import { MdMoreVert as MoreVertIcon } from "react-icons/md";
 import { Createpost } from "./createpost";
-import Editfuserdata from "../layout/profile/editfuserdata";
 import { auth } from "../service/Auth";
 import Profileviewbox from "../layout/profile/profileviewbox";
 import ProgressBar from "@badrap/bar-of-progress";
@@ -25,33 +29,44 @@ import Loading from "../layout/loading";
 import Report from "../layout/profile/report";
 import FirstPost from "../layout/profile/firstPost";
 import Menu from "../layout/profile/menu";
+import MemberImportDetails from "./member-import-details";
+import ImportedProfileSummary, { getImportedSummaryRows } from "./imported-profile-summary";
 export const Profile = ({ username }) => {
   const progress = new ProgressBar();
-  const [profileuserdata, setprofileuserdata] = useState(null);
   const navigate = useNavigate();
-  const { userdata, defaultprofileimage, setuserdata } = useUserdatacontext();
-  const [loading, setloading] = useState(false);
+  const { userdata, defaultprofileimage, setuserdata, isAdmin } = useUserdatacontext();
   const [active, setactive] = useState("");
   const [mutual, setmutual] = useState([]);
+  const { data: profileFromQuery, isLoading } = useUserByUsername(username, { enabled: !!username && username !== userdata?.username });
+  const loading = username === userdata?.username ? !userdata : isLoading;
+  const [profileuserdata, setprofileuserdata] = useState(null);
 
   useEffect(() => {
-    const data = async () => {
-      progress.start();
-      setloading(true);
-      if (username === userdata?.username) setprofileuserdata(userdata);
-      else {
-        const profile = await get_userdatabyname(username);
-        setprofileuserdata(profile);
-      }
-      progress.finish();
-      setloading(false);
-    };
-    data();
-    return () => {
-      progress.finish();
-      setloading(false);
-    };
-  }, [username]);
+    if (username === userdata?.username) {
+      setprofileuserdata(userdata);
+    } else if (profileFromQuery) {
+      setprofileuserdata(profileFromQuery);
+    }
+  }, [username, userdata, profileFromQuery]);
+  const { data: classificationTagOptions = [] } = useClassificationTagOptions();
+  const { data: profileCustomFieldDefs = [] } = useCustomFieldsForProfile();
+  const classificationLabel = profileuserdata?.classificationTagId
+    ? classificationTagOptions.find((t) => t.id === profileuserdata.classificationTagId)?.label ?? null
+    : null;
+  const lookups = profileCustomFieldDefs.filter((f) => f.type === "lookup" && f.tagCategoryId);
+  const tagQueries = useQueries({
+    queries: lookups.map((f) => ({
+      queryKey: ["tags", f.tagCategoryId],
+      queryFn: () => getTagsByCategoryId(f.tagCategoryId),
+      enabled: !!f.tagCategoryId,
+    })),
+  });
+  const lookupTagLabels = lookups.reduce((acc, f, i) => {
+    if (tagQueries[i]?.data) {
+      tagQueries[i].data.forEach((t) => { acc[t.id] = t.label; });
+    }
+    return acc;
+  }, {});
 
   useEffect(() => {
     setactive("");
@@ -83,10 +98,8 @@ export const Profile = ({ username }) => {
 
   useEffect(() => {
     const data = async () => {
-      if (auth.currentUser && profileuserdata) {
-        if (userdata?.username !== profileuserdata?.username) {
-          await updateprofileuserdata(profileuserdata, username);
-        }
+      if (auth.currentUser && profileuserdata && userdata?.username === profileuserdata?.username) {
+        await updateprofileuserdata(profileuserdata, username);
       }
     };
     data();
@@ -104,41 +117,47 @@ export const Profile = ({ username }) => {
   }, [userdata, profileuserdata]);
 
   useEffect(() => {
-    if (profileuserdata?.block?.includes(userdata?.uid)) {
-      setProfileuserdata(null);
+    if (profileuserdata?.block?.includes(userdata?.uid) && !isAdmin) {
+      setprofileuserdata(null);
     }
-  }, [profileuserdata]);
+  }, [profileuserdata, userdata?.uid, isAdmin]);
 
   const handelfollow = async () => {
-    if (auth.currentUser && profileuserdata) {
-      profileuserdata?.follower?.includes(userdata?.uid)
-        ? setprofileuserdata((prev) => ({
-            ...prev,
-            follower: profileuserdata?.follower.filter(
-              (e) => e !== userdata?.uid,
-            ),
-          }))
-        : setprofileuserdata((prev) => ({
-            ...prev,
-            follower: [...prev.follower, userdata?.uid],
-          }));
-      !userdata?.following.includes(profileuserdata?.uid)
-        ? setuserdata((prev) => ({
-            ...prev,
-            following: [...prev.following, profileuserdata?.uid],
-          }))
-        : setuserdata((prev) => ({
-            ...prev,
-            following: userdata?.following.filter(
-              (e) => e !== profileuserdata?.uid,
-            ),
-          }));
-      !profileuserdata?.follower?.includes(userdata?.uid) &&
-        (await Create_notification(profileuserdata?.uid, {
+    if (!auth.currentUser || !profileuserdata) {
+      navigate("/login");
+      return;
+    }
+    if (!userdata?.uid || !profileuserdata?.uid) {
+      toast.error("Unable to update follow");
+      return;
+    }
+    const isCurrentlyFollowing = profileuserdata?.follower?.includes(userdata.uid);
+    const newProfileFollower = isCurrentlyFollowing
+      ? (profileuserdata.follower || []).filter((e) => e !== userdata.uid)
+      : [...(profileuserdata.follower || []), userdata.uid];
+    const newUserFollowing = isCurrentlyFollowing
+      ? (userdata.following || []).filter((e) => e !== profileuserdata.uid)
+      : [...(userdata.following || []), profileuserdata.uid];
+
+    setprofileuserdata((prev) => ({ ...prev, follower: newProfileFollower }));
+    setuserdata((prev) => ({ ...prev, following: newUserFollowing }));
+
+    try {
+      const usernameToUpdate = (profileuserdata.username || "").trim().toLowerCase();
+      await updateprofileuserdata({ follower: newProfileFollower }, usernameToUpdate);
+      await updateuserdata({ uid: userdata.uid, following: newUserFollowing });
+      if (!isCurrentlyFollowing) {
+        await Create_notification(profileuserdata?.uid, {
           type: "follow",
           likeby: userdata?.uid,
-        }));
-    } else navigate("/login");
+        });
+      }
+    } catch (err) {
+      console.error("handelfollow:", err);
+      setprofileuserdata((prev) => ({ ...prev, follower: profileuserdata?.follower }));
+      setuserdata((prev) => ({ ...prev, following: userdata?.following }));
+      toast.error("Failed to update follow");
+    }
   };
 
   if (loading) {
@@ -146,8 +165,8 @@ export const Profile = ({ username }) => {
   }
 
   return (
-    <div className="  post  w-full p-2 sm:text-2xl text-lg capitalize">
-      <div className="flex  relative m-1 sm:m-2 ">
+    <div className="post w-full p-2 sm:text-2xl text-lg capitalize">
+      <div className="flex relative m-1 sm:m-2 ">
         <i
           onClick={() => {
             navigate("/home");
@@ -179,38 +198,75 @@ export const Profile = ({ username }) => {
           <MoreVertIcon />
         </i>
         {active === "setting" && profileuserdata && (
-          <Menu profileuserdata={profileuserdata} setactive={setactive} />
+          <Menu
+            profileuserdata={profileuserdata}
+            setprofileuserdata={setprofileuserdata}
+            setactive={setactive}
+          />
         )}
       </div>
-      <div className="flex post">
-        <div className="sm:my-10 sm:space-y-3 aspect-square space-y-1 flex flex-col text-left sm:m-5 m-3">
+      <div className="flex items-center justify-center grid grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8 lg:items-start px-8">
+        {/* Left column: profile card – 2 equal columns: main data | custom fields */}
+        <aside className="grid grid-cols-2 gap-4 lg:sticky lg:top-4">
+        {/* Left: main profile data */}
+        <div className="sm:my-10 sm:space-y-3 space-y-1 flex flex-col text-left sm:m-5 m-3">
           <img
             src={profileuserdata?.profileImageURL || defaultprofileimage}
             onError={(e) => {
               e.target.src = defaultprofileimage;
             }}
-            className="sm:w-28 sm:h-28 h-20 w-20  rounded-full  border-2 border-neutral-600"
+            className="sm:w-28 sm:h-28 h-20 w-20 rounded-full object-cover"
           />
           <div className="flex flex-col ">
-            <label className=" text-xl font-semibold">
-              {profileuserdata?.name || (
-                <Skeleton
-                  animation="wave"
-                  sx={{ bgcolor: "grey.900" }}
-                  variant="text"
-                  width={150}
-                />
+            <div className="flex items-center gap-2">
+              <label className=" text-xl font-semibold">
+                {profileuserdata?.name || (
+                  <Skeleton
+                    animation="wave"
+                    sx={{ bgcolor: "grey.900" }}
+                    variant="text"
+                    width={150}
+                  />
+                )}
+              </label>
+              {profileuserdata?.username === userdata?.username && userdata?.username && (
+                <button
+                  title="Edit profile"
+                  onClick={(e) => {
+                    e.stopPropagation?.();
+                    navigate("/setting/edit-profile");
+                  }}
+                  className="p-1 rounded-full hover:bg-bg-hover text-text-secondary hover:text-accent-500 transition-colors"
+                  aria-label="Edit profile"
+                >
+                  <EditIcon className="text-lg" />
+                </button>
               )}
-            </label>
-            <label className="flex text-lg  space-x-1 text-gray-400">
+            </div>
+            <label className="flex text-lg items-center gap-2 text-gray-400">
               @{profileuserdata?.username || username}
+              {profileuserdata?.isAdmin && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                  Admin
+                </span>
+              )}
             </label>
           </div>
           {profileuserdata?.bio && (
             <pre className=" text-sm sm:text-base">{profileuserdata?.bio}</pre>
           )}
-
-          <div className="flex space-x-3 sm:text-lg text-base  text-gray-400">
+          {classificationLabel && (
+            <p className="text-sm text-gray-400 text-xl font-semibold">
+            {classificationLabel}
+            </p>
+          )}
+          {getImportedSummaryRows(profileuserdata).length > 0 && (
+            <ImportedProfileSummary
+              profile={profileuserdata}
+              className="mt-3 pt-3 border-t border-border-default"
+            />
+          )}
+          <div className="flex space-x-3 sm:text-lg text-base text-gray-400">
             <label
               onClick={() => {
                 ((profileuserdata?.privacy &&
@@ -242,6 +298,45 @@ export const Profile = ({ username }) => {
               {profileuserdata?.following?.length} following
             </label>
           </div>
+
+          {profileuserdata?.profileResources?.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-border-default">
+              <h3 className="text-sm font-semibold text-text-primary mb-2">Resources</h3>
+              <ul className="space-y-3">
+                {profileuserdata.profileResources.map((res) => (
+                  <li
+                    key={res.id}
+                    className="p-3 rounded-lg bg-bg-tertiary border border-border-default"
+                  >
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-text-primary">
+                          {res.name?.trim() || "Unnamed resource"}
+                        </p>
+                        {res.description?.trim() && (
+                          <p className="text-sm text-text-secondary mt-0.5 whitespace-pre-wrap">
+                            {res.description}
+                          </p>
+                        )}
+                      </div>
+                      <a
+                        href={res.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-secondary border border-border-default text-sm text-accent-500 hover:bg-bg-hover hover:underline flex-shrink-0"
+                      >
+                        <FileIcon className="flex-shrink-0 text-lg" />
+                        {res.name?.trim() || getFileNameFromStorageUrl(res.fileUrl) || "Download"}
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          
           {userdata?.block?.includes(profileuserdata?.uid) && (
             <label className="text-sm my-4  font-serif text-red-400">
               you blocked this account
@@ -261,35 +356,93 @@ export const Profile = ({ username }) => {
             )}
         </div>
 
-        {profileuserdata?.username === userdata?.username ? (
+        {/* Right: custom fields */}
+        <div className="sm:my-10 sm:space-y-3 space-y-1 flex flex-col text-left sm:m-5 m-3">
+          {profileCustomFieldDefs
+            .filter((f) => profileuserdata?.customFields?.[f.key] != null && profileuserdata.customFields[f.key] !== "")
+            .map((f) => (
+              <div key={f.id} className="text-sm text-gray-400 mt-1">
+                <span className="text-gray-500">{f.label}:</span>{" "}
+                {f.type === "url" ? (
+                  <a
+                    href={profileuserdata.customFields[f.key]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent-500 hover:underline"
+                  >
+                    {profileuserdata.customFields[f.key]}
+                  </a>
+                ) : f.type === "phone" ? (
+                  <a
+                    href={`tel:${profileuserdata.customFields[f.key].replace(/\s/g, "")}`}
+                    className="text-accent-500 hover:underline"
+                  >
+                    {profileuserdata.customFields[f.key]}
+                  </a>
+                ) : f.type === "lookup" ? (
+                  lookupTagLabels[profileuserdata.customFields[f.key]] ?? profileuserdata.customFields[f.key]
+                ) : f.type === "image" ? (
+                  <span className="inline-block mt-1">
+                    <a
+                      href={profileuserdata.customFields[f.key]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent-500 hover:underline inline-block"
+                    >
+                      <img
+                        src={profileuserdata.customFields[f.key]}
+                        alt={f.label}
+                        className="max-h-24 rounded border border-border-default object-cover"
+                      />
+                    </a>
+                    <span className="block text-sm text-text-tertiary mt-0.5 truncate max-w-[220px]">
+                      {getFileNameFromStorageUrl(profileuserdata.customFields[f.key])}
+                    </span>
+                  </span>
+                ) : f.type === "file" ? (
+                  <a
+                    href={profileuserdata.customFields[f.key]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-accent-500 hover:underline"
+                  >
+                    <FileIcon className="flex-shrink-0 text-lg text-text-secondary" />
+                    <span className="truncate max-w-[220px]">
+                      {getFileNameFromStorageUrl(profileuserdata.customFields[f.key])}
+                    </span>
+                  </a>
+                ) : f.type === "note" ? (
+                  <pre className="mt-0.5 whitespace-pre-wrap font-sans text-inherit">
+                    {profileuserdata.customFields[f.key]}
+                  </pre>
+                ) : (
+                  profileuserdata.customFields[f.key]
+                )}
+              </div>
+            ))}
+        </div>
+
+        {profileuserdata?.memberData && (
+          <div className="col-span-2 sm:mx-5 mx-3 -mt-4">
+            <MemberImportDetails memberData={profileuserdata.memberData} />
+          </div>
+        )}
+
+        {profileuserdata?.username !== userdata?.username && (
           <div
-            className={`${
-              userdata?.username ? "block" : "hidden"
-            } cursor-pointer mr-5 ml-auto`}
+            className={`col-span-2 ${userdata?.username ? "flex flex-wrap gap-2" : "hidden"} cursor-pointer mr-5 ml-auto`}
           >
             <button
-              title="edit profile"
-              onClick={() => {
-                active === "edit" ? setactive("") : setactive("edit");
-              }}
-              className="bg-black border-2 relative top-1/3 sm:mr-10 text-xs sm:text-lg  border-sky-200 sm:px-3 p-2 font-semibold capitalize rounded-3xl ml-auto  "
+              title="message"
+              onClick={() => navigate(`/messages/${profileuserdata?.username}`)}
+              className="border-2 relative top-1/3 sm:mr-2 text-xs sm:text-lg border-border-default sm:px-3 p-2 font-semibold capitalize rounded-3xl hover:bg-bg-hover transition-colors"
             >
-              <span className="flex justify-center sm:justify-start  ">
-                <EditIcon />
-                <label className="sm:block hidden mx-2">edit profile</label>
-              </span>
+              Message
             </button>
-          </div>
-        ) : (
-          <div
-            className={`${
-              userdata?.username ? "block" : "hidden"
-            } cursor-pointer mr-5 ml-auto`}
-          >
             <button
               title="follow"
               onClick={handelfollow}
-              className="bg-black border-2 relative top-1/3 sm:mr-10 text-xs sm:text-lg mr-2  border-sky-200 sm:px-3 p-2 font-semibold capitalize rounded-3xl ml-auto  "
+              className="bg-black border-2 relative top-1/3 sm:mr-10 text-xs sm:text-lg mr-2 border-sky-200 sm:px-3 p-2 font-semibold capitalize rounded-3xl ml-auto"
             >
               <label className="mx-2">
                 {profileuserdata?.follower?.includes(userdata?.uid) ? (
@@ -301,10 +454,10 @@ export const Profile = ({ username }) => {
             </button>
           </div>
         )}
-      </div>
+        </aside>
 
-      <hr className="my-1 border-gray-400" />
-
+        {/* Right column: posts (tall) */}
+        <div className="flex flex-col">
       {profileuserdata?.uid === userdata?.uid ? (
         <>
           {profileuserdata?.post?.length === 0 ? (
@@ -321,7 +474,7 @@ export const Profile = ({ username }) => {
         <Fragment>
           {profileuserdata?.privacy ? (
             <Fragment>
-              {profileuserdata?.follower.includes(userdata?.uid) ? (
+              {profileuserdata?.follower?.includes(userdata?.uid) ? (
                 <>
                   {profileuserdata?.post?.length === 0 ? (
                     <NoPost />
@@ -360,6 +513,8 @@ export const Profile = ({ username }) => {
           profile doesnot exist
         </div>
       )}
+        </div>
+      </div>
 
       {active === "report" && (
         <Popupitem
@@ -484,20 +639,6 @@ export const Profile = ({ username }) => {
             </Popupitem>
           }
         </div>
-      )}
-
-      {active === "edit" && (
-        <Popupitem
-          closefunction={() => {
-            setactive("");
-          }}
-        >
-          <Editfuserdata
-            toggle={() => {
-              setactive("");
-            }}
-          />
-        </Popupitem>
       )}
 
       {active === "post" && (

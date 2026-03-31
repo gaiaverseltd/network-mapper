@@ -2,11 +2,31 @@ import React from "react";
 import { useUserdatacontext } from "../../service/context/usercontext";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../../service/Auth";
+import { updateprofileuserdata } from "../../service/Auth/database";
+import { toast } from "react-toastify";
 import { Popupcenter } from "../../ui/Popupcenter";
 
-function Menu({ setactive, profileuserdata }) {
+function Menu({ setactive, profileuserdata, setprofileuserdata }) {
   const navigate = useNavigate();
-  const { userdata, setuserdata } = useUserdatacontext();
+  const { userdata, setuserdata, isAdmin } = useUserdatacontext();
+  const isViewingOther = profileuserdata?.username !== userdata?.username;
+  const canChangeAdmin = isAdmin && isViewingOther;
+
+  const handleToggleAdmin = async () => {
+    if (!profileuserdata || !setprofileuserdata) return;
+    const newAdmin = !profileuserdata.isAdmin;
+    const updated = { ...profileuserdata, isAdmin: newAdmin };
+    try {
+      await updateprofileuserdata(updated, profileuserdata.username);
+      setprofileuserdata(updated);
+      toast.success(newAdmin ? "User set as admin." : "Admin removed.");
+      setactive("");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not update admin status.");
+    }
+  };
+
   return (
     <Popupcenter
       closefunction={() => {
@@ -19,8 +39,8 @@ function Menu({ setactive, profileuserdata }) {
           onClick={() => {
             navigator.share({
               title:
-                "Spreading the Vibes: Check Out My Latest Socialite Post! ",
-              text: "Embark on a journey through elegance and excitement! My newest post on Socialite App is here to dazzle your feed. Swipe up to experience the glitz, glamour, and all things fabulous!",
+                "Spreading the Vibes: Check Out My Latest Accel Net Post! ",
+              text: "Embark on a journey through elegance and excitement! My newest post on Accel Net is here to dazzle your feed. Swipe up to experience the glitz, glamour, and all things fabulous!",
               url: window.location.href,
             });
             setactive("");
@@ -36,7 +56,15 @@ function Menu({ setactive, profileuserdata }) {
         >
           about profile{" "}
         </button>
-        {profileuserdata?.username !== userdata?.username ? (
+        {canChangeAdmin && (
+          <button
+            className="sm:w-40 capitalize p-1 hover:bg-gray-950 text-amber-400"
+            onClick={handleToggleAdmin}
+          >
+            {profileuserdata?.isAdmin ? "Remove admin" : "Set as admin"}
+          </button>
+        )}
+        {isViewingOther ? (
           <>
             <button
               className="sm:w-40 capitalize  p-1  text-red-500 hover:bg-gray-950"
@@ -69,9 +97,9 @@ function Menu({ setactive, profileuserdata }) {
         ) : (
           <>
             <button
-              className="sm:w-40 capitalize  p-1   hover:bg-gray-950"
+              className="sm:w-40 capitalize p-1 hover:bg-gray-950"
               onClick={() => {
-                navigate("/setting");
+                navigate("/setting/edit-profile");
               }}
             >
               account settings

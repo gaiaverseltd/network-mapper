@@ -8,6 +8,7 @@ import { MdBookmark as BookmarkedIcon } from "react-icons/md";
 import { MdBarChart as ViewsIcon } from "react-icons/md";
 import { MdMoreVert as MoreIcon } from "react-icons/md";
 import { MdShare as ShareIcon } from "react-icons/md";
+import { MdInsertDriveFile as FileIcon } from "react-icons/md";
 import { Skeleton } from "../ui/skeleton";
 import { Popupitem } from "../ui/popup";
 import Avatar from "../ui/avatar";
@@ -16,9 +17,10 @@ import Linkify from "linkify-react";
 import { useUserdatacontext } from "../service/context/usercontext";
 import {
   Create_notification,
-  get_userdata,
   updatepost,
+  getFileNameFromStorageUrl,
 } from "../service/Auth/database";
+import { useUserData } from "../hooks/queries";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Time, { formatNumber } from "../service/utiles/time";
@@ -35,17 +37,19 @@ export const Post = ({ postdata, popup = true }) => {
   const [active, setactive] = useState("");
   const [post, setpost] = useState(postdata || null);
   const [hide, sethide] = useState(false);
-  const [postedby, setpostedby] = useState(null);
   const [loadingimg, setloadingimg] = useState(true);
+  const [imgError, setImgError] = useState(false);
   const navigate = useNavigate();
 
+  const { data: postedby } = useUserData(post?.postedby, { enabled: !!post?.postedby });
+
+  // Reset loading state when post changes
   useEffect(() => {
-    const data = async () => {
-      const postedby = await get_userdata(post?.postedby);
-      setpostedby(postedby);
-    };
-    data();
-  }, [post]);
+    if (post?.img) {
+      setloadingimg(true);
+      setImgError(false);
+    }
+  }, [post?.postid, post?.img]);
 
   // Debounce post updates to prevent excessive database calls
   const updatePostDebounced = useCallback(async () => {
@@ -233,17 +237,94 @@ export const Post = ({ postdata, popup = true }) => {
               className="mb-3 break-long-words max-w-full overflow-hidden"
             >
               <p className="text-[15px] text-text-primary leading-[1.6] whitespace-pre-wrap break-long-words">
-                <Linkify 
-                  className="text-text-primary break-long-words"
-                  linkProps={{
-                    target: "_blank",
-                    rel: "noopener noreferrer",
-                    className: "text-accent-500 hover:text-accent-400 hover:underline transition-colors duration-200 break-words",
+                <Linkify
+                  as="span"
+                  options={{
+                    attributes: {
+                      target: "_blank",
+                      rel: "noopener noreferrer",
+                      className: "text-accent-500 hover:text-accent-400 hover:underline transition-colors duration-200 break-words",
+                    },
                   }}
                 >
                   {post.content}
                 </Linkify>
               </p>
+            </div>
+          )}
+
+          {/* Post custom fields */}
+          {post?.customFields && Object.keys(post.customFields).length > 0 && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/profile/${postedby?.username}/${post?.postid}`);
+              }}
+              className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm"
+            >
+              {Object.entries(post.customFields).map(([key, value]) => {
+                if (value == null || String(value).trim() === "") return null;
+                const label = key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+                const strVal = String(value);
+                const isMultiline = strVal.includes("\n");
+                const isUrl = strVal.startsWith("http");
+                const isImageUrl =
+                  isUrl &&
+                  (String(key).toLowerCase().includes("image") ||
+                    /\.(jpe?g|png|gif|webp|avif)(\?|$)/i.test(strVal));
+                return (
+                  <span key={key} className={`text-text-secondary ${isMultiline ? "block w-full" : ""}`}>
+                    <span className="text-text-tertiary">{label}:</span>{" "}
+                    {isImageUrl ? (
+                      <span className="inline-block">
+                        <a
+                          href={value}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-accent-500 hover:underline inline-block"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <img
+                            src={value}
+                            alt={label}
+                            className="max-h-16 rounded border border-border-default object-cover"
+                          />
+                        </a>
+                        <span className="block text-xs text-text-tertiary truncate max-w-[180px]">
+                          {getFileNameFromStorageUrl(strVal)}
+                        </span>
+                      </span>
+                    ) : isUrl ? (
+                      <a
+                        href={value}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-accent-500 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <FileIcon className="flex-shrink-0 text-base text-text-secondary" />
+                        <span className="truncate max-w-[180px]">
+                          {String(key).toLowerCase().includes("url") ? value : getFileNameFromStorageUrl(strVal)}
+                        </span>
+                      </a>
+                    ) : isMultiline ? (
+                      <pre className="mt-0.5 whitespace-pre-wrap font-sans text-inherit text-text-secondary">
+                        {value}
+                      </pre>
+                    ) : String(key).toLowerCase().includes("phone") ? (
+                      <a
+                        href={`tel:${strVal.replace(/\s/g, "")}`}
+                        className="text-accent-500 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {value}
+                      </a>
+                    ) : (
+                      value
+                    )}
+                  </span>
+                );
+              })}
             </div>
           )}
 
@@ -254,10 +335,10 @@ export const Post = ({ postdata, popup = true }) => {
                 e.stopPropagation();
                 navigate(`/profile/${postedby?.username}/${post?.postid}`);
               }}
-              className="relative rounded-2xl overflow-hidden border border-border-default/50 mb-3 cursor-pointer group/image transition-all duration-300 hover:border-border-hover/50 hover:shadow-lg hover:shadow-black/20"
+              className="relative rounded-2xl overflow-hidden border border-border-default/50 mb-3 cursor-pointer group/image transition-all duration-300 hover:border-border-hover/50 hover:shadow-lg hover:shadow-black/20 aspect-video bg-bg-tertiary"
             >
-              {loadingimg && (
-                <div className="w-full aspect-video bg-bg-tertiary animate-pulse flex items-center justify-center">
+              {loadingimg && !imgError && (
+                <div className="absolute inset-0 flex items-center justify-center">
                   <Skeleton
                     animation="wave"
                     sx={{ bgcolor: "grey.900", borderRadius: "1rem" }}
@@ -267,19 +348,42 @@ export const Post = ({ postdata, popup = true }) => {
                   />
                 </div>
               )}
-              <img
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  handleLike();
-                }}
-                onLoad={() => setloadingimg(false)}
-                src={post.img}
-                className={`${
-                  loadingimg ? "hidden" : "block"
-                } w-full max-h-[600px] object-cover transition-transform duration-300 group-hover/image:scale-[1.02]`}
-                alt="Post"
-                loading="lazy"
-              />
+              {imgError ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center px-4">
+                    <p className="text-text-tertiary text-sm">Failed to load image</p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setImgError(false);
+                        setloadingimg(true);
+                      }}
+                      className="mt-2 text-xs text-accent-500 hover:text-accent-400 transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <img
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    handleLike();
+                  }}
+                  onLoad={() => setloadingimg(false)}
+                  onError={() => {
+                    setloadingimg(false);
+                    setImgError(true);
+                    console.error('Failed to load image:', post.img);
+                  }}
+                  src={post.img}
+                  className={`absolute inset-0 w-full h-full max-w-[800px] object-contain transition-all duration-300 group-hover/image:scale-[1.02] ${
+                    loadingimg ? "opacity-0" : "opacity-100"
+                  }`}
+                  alt="Post"
+                  loading="lazy"
+                />
+              )}
             </div>
           )}
 

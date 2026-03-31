@@ -1,17 +1,19 @@
-import React, { Fragment } from "react";
+import React, { Fragment, useState } from "react";
 import { motion } from "framer-motion";
-import Suggestion from "./../component/suggestion";
-import { Helmet } from "react-helmet";
+import Suggestion from "../component/suggestion";
+import SearchParams from "../layout/explore/search-params";
+import { Helmet } from "react-helmet-async";
 
 export default function Search() {
+  const [filters, setFilters] = useState({ keyword: "" });
+
   return (
     <Fragment>
       <Helmet>
-        <title>Explore | socilaite</title>
+        <title>Explore | AccelNet</title>
         <meta name="description" content="Explore" />
         <link rel="canonical" href="/Explore" />
         <meta name="robots" content="index, follow" />
-       
         <meta name="keywords" content="Explore" />
         <meta name="author" content="Explore" />
         <meta name="language" content="EN" />
@@ -20,9 +22,14 @@ export default function Search() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="w-full px-4 sm:px-6 lg:px-8 pb-20"
+        className="flex gap-6 w-full pb-20 flex-col lg:flex-row flex-1 min-h-0"
       >
-        <Suggestion bio={true} />
+        <div className="flex-[7] min-w-0 flex flex-col min-h-0">
+          <Suggestion bio={true} filters={filters} onFiltersChange={setFilters} />
+        </div>
+        <div className="flex-[3] min-w-0 shrink-0">
+          <SearchParams filters={filters} onFiltersChange={setFilters} />
+        </div>
       </motion.div>
     </Fragment>
   );

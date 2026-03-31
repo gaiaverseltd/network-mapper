@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { get_userdata } from "../../service/Auth/database";
+import React from "react";
+import { useUserData } from "../../hooks/queries";
 import { useUserdatacontext } from "../../service/context/usercontext";
 import { useNavigate } from "react-router-dom";
 import Time from "../../service/utiles/time";
@@ -8,19 +8,11 @@ import { Skeleton } from "../../ui/skeleton";
 export default function Notify({ notification }) {
   const { userdata, defaultprofileimage } = useUserdatacontext();
   const navigate = useNavigate();
-  const [likeby, setlikeby] = useState(null);
-
-  useEffect(() => {
-    const data = async () => {
-      notification?.intent?.likeby &&
-        setlikeby(await get_userdata(notification?.intent?.likeby));
-    };
-
-    data();
-  }, [notification?.intent?.likeby]);
+  const actorUid = notification?.intent?.likeby ?? notification?.intent?.fromUid;
+  const { data: likeby } = useUserData(actorUid, { enabled: !!actorUid });
 
   const getNotificationText = () => {
-    switch (notification.intent.type) {
+    switch (notification?.intent?.type) {
       case "postlike":
         return "liked your post";
       case "commentlike":
@@ -33,18 +25,23 @@ export default function Notify({ notification }) {
         return "liked your reply";
       case "follow":
         return "started following you";
+      case "message":
+        return "sent you a message";
       default:
         return "interacted with you";
     }
   };
 
   const handleClick = () => {
-    if (notification.intent.type === "follow") {
+    const type = notification?.intent?.type;
+    if (type === "message" && likeby?.username) {
+      navigate(`/messages/${likeby.username}`);
+    } else if (type === "follow") {
       navigate(`/profile/${likeby?.username}`);
-    } else {
-      navigate(
-        `/profile/${userdata?.username}/${notification?.intent?.postid}`,
-      );
+    } else if (notification?.intent?.postid) {
+      navigate(`/profile/${userdata?.username}/${notification.intent.postid}`);
+    } else if (likeby?.username) {
+      navigate(`/profile/${likeby.username}`);
     }
   };
 

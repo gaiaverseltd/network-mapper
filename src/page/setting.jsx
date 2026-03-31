@@ -2,11 +2,10 @@ import React, { Fragment, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MdKeyboardArrowRight as KeyboardArrowRightIcon } from "react-icons/md";
 import { MdArrowBack as ArrowBackIcon } from "react-icons/md";
-import Editfuserdata from "../layout/profile/editfuserdata";
 import { auth } from "../service/Auth";
 import { useNavigate } from "react-router-dom";
 import { MdKeyboardArrowLeft as KeyboardArrowLeftIcon } from "react-icons/md";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import Block from "../layout/setting/block";
 import Resetpassword from "../layout/setting/resetpassword";
 import Report from "../layout/setting/Report";
@@ -25,6 +24,7 @@ export default function Setting() {
       id: "account",
       label: "Account",
       icon: KeyboardArrowRightIcon,
+      action: () => navigate("/setting/edit-profile"),
     },
     {
       id: "password",
@@ -32,10 +32,10 @@ export default function Setting() {
       icon: KeyboardArrowRightIcon,
     },
     {
-      id: "bookmark",
-      label: "Bookmark Collection",
+      id: "bookmarks",
+      label: "Bookmarks",
       icon: KeyboardArrowRightIcon,
-      action: () => navigate("/lists"),
+      action: () => navigate("/bookmarks"),
     },
     {
       id: "block",
@@ -57,7 +57,7 @@ export default function Setting() {
   return (
     <Fragment>
       <Helmet>
-        <title>Settings | Socialite</title>
+        <title>Settings | Accel Net</title>
       </Helmet>
       
       <div className="w-full flex flex-col md:flex-row h-screen overflow-hidden">
@@ -161,7 +161,6 @@ export default function Setting() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
-                {active === "account" && <Editfuserdata />}
                 {active === "password" && (
                   <Resetpassword toggle={() => setactive("")} />
                 )}

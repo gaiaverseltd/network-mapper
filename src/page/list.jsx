@@ -3,7 +3,7 @@ import { useUserdatacontext } from "../service/context/usercontext";
 import { useNavigate } from "react-router-dom";
 import Postidtopost from "../layout/post/postidtopost";
 import { MdBookmarkRemove as BookmarkRemoveSharpIcon } from "react-icons/md";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 
 export const List = () => {
   const { userdata, setuserdata } = useUserdatacontext();
@@ -12,7 +12,7 @@ export const List = () => {
   return (
     <Fragment>
       <Helmet>
-        <title>Bookmarks | Socialite</title>
+        <title>Bookmarks | Accel Net</title>
       </Helmet>
       
       {/* Sticky Header */}
@@ -34,7 +34,7 @@ export const List = () => {
       </div>
 
       {/* Bookmarks List */}
-      <div className="w-full">
+      <div className="w-full px-[25%]">
         {userdata?.saved?.length > 0 ? (
           <div className="flex flex-col">
             {userdata.saved.map((item, index) => (

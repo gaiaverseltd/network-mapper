@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useUserdatacontext } from "../../service/context/usercontext";
-import { Create_notification, get_userdata } from "../../service/Auth/database";
+import { Create_notification } from "../../service/Auth/database";
+import { useUserData } from "../../hooks/queries";
 import { MdFavoriteBorder as LikeIcon } from "react-icons/md";
 import { MdFavorite as LikedIcon } from "react-icons/md";
 import { MdMoreVert as MoreIcon } from "react-icons/md";
@@ -17,19 +18,12 @@ import Report from "../profile/report";
 
 export default function Reply({ reply, setcommentpost, cuutcomment }) {
   const { userdata, defaultprofileimage } = useUserdatacontext();
-  const [commentby, setcommentby] = useState(null);
   const [loadingimg, setloadingimg] = useState(true);
   const navigate = useNavigate();
   const [active, setactive] = useState("");
   const [comment, setcomment] = useState(reply || null);
 
-  useEffect(() => {
-    const data = async () => {
-      const commentby = await get_userdata(comment?.postedby);
-      setcommentby(commentby);
-    };
-    data();
-  }, [comment?.postedby]);
+  const { data: commentby } = useUserData(comment?.postedby, { enabled: !!comment?.postedby });
 
   useEffect(() => {
     setcomment(reply);
@@ -186,12 +180,14 @@ export default function Reply({ reply, setcommentpost, cuutcomment }) {
           {comment?.content && (
             <div className="mb-3 break-long-words max-w-full overflow-hidden">
               <p className="text-[15px] text-text-primary leading-[1.6] whitespace-pre-wrap break-long-words">
-                <Linkify 
-                  className="text-text-primary break-long-words"
-                  linkProps={{
-                    target: "_blank",
-                    rel: "noopener noreferrer",
-                    className: "text-accent-500 hover:text-accent-400 hover:underline transition-colors duration-200 break-words",
+                <Linkify
+                  as="span"
+                  options={{
+                    attributes: {
+                      target: "_blank",
+                      rel: "noopener noreferrer",
+                      className: "text-accent-500 hover:text-accent-400 hover:underline transition-colors duration-200 break-words",
+                    },
                   }}
                 >
                   {comment.content}

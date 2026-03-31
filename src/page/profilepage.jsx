@@ -1,7 +1,7 @@
 import React, { Fragment, useEffect } from "react";
 import { Profile } from "../component/profile";
 import { useParams } from "react-router-dom";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import useTop from "../service/utiles/useTop";
 export const Profilepage = () => {
   const { username } = useParams();
@@ -10,11 +10,10 @@ export const Profilepage = () => {
   return (
     <Fragment>
       <Helmet>
-        <title>Profile | {username} | socilaite</title>
+        <title>Profile | {username} | AccelNet</title>
         <meta name="description" content="Profile" />
         <link rel="canonical" href="/Profile" />
-        <meta name="robots" content="index, follow" />
-       
+        <meta name="robots" content="index, follow" />       
         <meta name="keywords" content="Profile" />
         <meta name="author" content="Profile" />
         <meta name="language" content="EN" />

@@ -1,0 +1,20 @@
+rules_version = '2';
+// Firebase Storage: authenticated users can read all files; users can only write to their own folder
+// Deploy: firebase deploy --only storage
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Message attachments: sender writes; any authenticated user can read (recipient needs to open links)
+    match /message-attachments/{fromUid}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == fromUid;
+    }
+    // Path format: {userId} or {userId}/{anySubpath} — e.g. uid/photo.png or uid/custom-fields/fieldKey/123_file.pdf
+    // Any authenticated user can READ (for viewing posts, profiles, etc.)
+    // Only the owner can WRITE to their own folder
+    match /{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

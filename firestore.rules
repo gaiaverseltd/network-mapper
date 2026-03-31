@@ -1,0 +1,82 @@
+rules_version = '2';
+// Firestore security rules — standard interactions for Accel Net
+// Deploy: firebase deploy --only firestore:rules
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ——— profiles ———
+    // One document per user profile. Doc id = uid (canonical path for rules; get(profiles/request.auth.uid).data.isAdmin).
+    match /profiles/{profileId} {
+      // Create: only at profiles/{ownUid} with uid field matching
+      allow create: if request.auth != null
+        && profileId == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+      // Read: any authenticated user (needed for feed, profile pages, search)
+      allow read: if request.auth != null;
+      // Update: owner or admin can update anything; any auth user can update only 'post' (likes, comments) or 'follower' (follow/unfollow)
+      allow update: if request.auth != null
+        && (resource.data.uid == request.auth.uid
+            || (exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+                && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.isAdmin == true)
+            || request.resource.data.diff(resource.data).changedKeys().hasOnly(['post'])
+            || request.resource.data.diff(resource.data).changedKeys().hasOnly(['follower']));
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+
+    // ——— notification ———
+    // Notifications for a user (uid = recipient).
+    match /notification/{notificationId} {
+      // Create: any authenticated user (app creates notifications for others)
+      allow create: if request.auth != null;
+      // Read: only the recipient of the notification
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      // Update, delete: only the recipient (e.g. mark as read, clear)
+      allow update, delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+
+    // ——— tag categories (admin-only write). Allow if profile at profiles/{uid} has isAdmin == true.
+    match /tagCategories/{categoryId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null
+        && exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // ——— tags (admin-only write).
+    match /tags/{tagId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null
+        && exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // ——— custom fields (admin-only write).
+    match /customFields/{fieldId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null
+        && exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // ——— messages (direct messaging). Admins can read/create messages with anyone.
+    match /messages/{messageId} {
+      allow read: if request.auth != null
+        && (resource.data.fromUid == request.auth.uid
+            || resource.data.toUid == request.auth.uid
+            || (exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+                && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.isAdmin == true));
+      allow create: if request.auth != null
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toUid != request.auth.uid;
+      allow update: if request.auth != null
+        && (resource.data.toUid == request.auth.uid
+            || (exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+                && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.isAdmin == true));
+      allow delete: if false;
+    }
+  }
+}

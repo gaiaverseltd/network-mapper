@@ -3,7 +3,7 @@ import { MdClose as CloseIcon } from "react-icons/md";
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const Popupitem = ({ children, closefunction = () => {} }) => {
+const Popupitem = ({ children, closefunction = () => {}, contentClassName = "" }) => {
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -58,7 +58,7 @@ const Popupitem = ({ children, closefunction = () => {} }) => {
         {/* Popup content */}
         <motion.div
           variants={modalVariants}
-          className="relative z-50 w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl border border-border-default bg-bg-tertiary shadow-2xl"
+          className={`relative z-50 w-full max-h-[90vh] overflow-hidden rounded-2xl border border-border-default bg-bg-tertiary shadow-2xl ${contentClassName || "max-w-2xl"}`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Close button */}
@@ -82,13 +82,10 @@ const Popupitem = ({ children, closefunction = () => {} }) => {
   );
 };
 
-Popupitem.defaultProps = {
-  closefunction: () => {},
-};
-
 Popupitem.propTypes = {
   children: PropTypes.node.isRequired,
   closefunction: PropTypes.func,
+  contentClassName: PropTypes.string,
 };
 
 export { Popupitem };

@@ -1,45 +1,69 @@
 {
-  "name": "socialite",
+  "name": "accel-net",
   "private": true,
   "version": "4.1.0",
   "type": "module",
+  "packageManager": "pnpm@9.14.2",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "ignoreMissing": ["firebase"]
+    }
+  },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "start": "vite --host 0.0.0.0",
     "build": "vite build",
     "lint": "eslint  --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "format": "npx prettier . --write"
+    "format": "npx prettier . --write",
+    "set-functions-config": "node scripts/set-functions-config.js",
+    "deploy:functions": "node scripts/deploy-functions.js",
+    "ingest:users": "node scripts/ingest-users.js",
+    "seed:users": "node scripts/seed-users.js",
+    "seed:custom-fields": "node scripts/seed-custom-fields.js",
+    "seed:country-state-tags": "node scripts/seed-country-state-tags.js",
+    "update:custom-fields-show-as-filter": "node scripts/update-custom-fields-show-as-filter.js"
   },
   "dependencies": {
     "@badrap/bar-of-progress": "^0.2.2",
     "@emailjs/browser": "^4.4.1",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
+    "@tanstack/react-query": "^5.90.21",
     "firebase": "^10.5.2",
     "framer-motion": "^12.23.24",
     "linkify-react": "^4.1.3",
+    "linkifyjs": "^4.1.3",
     "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-helmet": "^6.1.0",
+    "react-helmet-async": "^2.0.4",
     "react-icons": "^5.5.0",
     "react-loader-spinner": "^6.1.6",
     "react-router-dom": "^6.18.0",
     "react-toastify": "^9.1.3",
     "sharp": "^0.33.5",
     "styled-components": "^6.1.0",
-    "tailwind-merge": "^2.3.0"
+    "tailwind-merge": "^2.3.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@babel/plugin-proposal-optional-chaining": "^7.21.0",
+    "@faker-js/faker": "^9.9.0",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react": "^4.0.3",
     "autoprefixer": "^10.4.16",
+    "csv-parse": "^5.6.0",
     "eslint": "^8.45.0",
     "eslint-plugin-react": "^7.32.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
+    "firebase-admin": "^11.8.0",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.5",
     "vite": "^4.4.5"

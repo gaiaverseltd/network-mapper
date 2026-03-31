@@ -2,6 +2,7 @@ import { Popupitem } from "../../ui/popup";
 import { MdDateRange as DateRangeIcon } from "react-icons/md";
 import PropTypes from "prop-types";
 import { useUserdatacontext } from "../../service/context/usercontext";
+import ImportedProfileSummary, { getImportedSummaryRows } from "../../component/imported-profile-summary";
 
 function Aboutprofile({ profiledata, close }) {
   const { defaultprofileimage } = useUserdatacontext();
@@ -24,6 +25,11 @@ function Aboutprofile({ profiledata, close }) {
           <h1 className="text-gray-300 text-sm  border-b-2 w-40 m-auto border-black pb-1 rounded-full hover:border-gray-400">
             @ {profiledata?.username}
           </h1>
+          {getImportedSummaryRows(profiledata).length > 0 && (
+            <div className="text-left max-w-sm mx-auto mt-4 px-2">
+              <ImportedProfileSummary profile={profiledata} />
+            </div>
+          )}
         </div>
         <div className="flex text-base capitalize justify-between">
           <i className="mr-auto my-auto ml-5 ">
