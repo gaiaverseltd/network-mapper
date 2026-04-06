@@ -90,7 +90,7 @@ exports.sendNotificationEmail = onRequest({ cors: true }, async (req, res) => {
   }
 });
 
-exports.sendNotificationEmailCallable = onCall(async (request) => {
+exports.sendNotificationEmailCallable = onCall({ invoker: "public" }, async (request) => {
   try {
     const { to, subject, html, text } = request.data;
 

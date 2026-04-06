@@ -5,7 +5,12 @@ import SearchParams from "../layout/explore/search-params";
 import { Helmet } from "react-helmet-async";
 
 export default function Search() {
-  const [filters, setFilters] = useState({ keyword: "" });
+  const [filters, setFilters] = useState({
+    keyword: "",
+    classificationTagId: "",
+    directoryScope: "",
+    sourceMemberId: "",
+  });
 
   return (
     <Fragment>

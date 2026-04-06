@@ -32,7 +32,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
 const storage = getStorage(app);
-const functions = getFunctions(app);
+// Match deployed region (see Cloud Function URL), otherwise the client may call the wrong endpoint.
+const functions = getFunctions(app, 'us-central1');
 
 /** Redirect-based Google sign-in (avoids COOP/popup issues). Call getRedirectResult() on app load to complete. */
 export const signInWithGoogleRedirect = () => {

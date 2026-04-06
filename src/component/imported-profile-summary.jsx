@@ -87,6 +87,94 @@ export function getImportedSummaryRows(profile) {
 }
 
 /**
+ * Effective value for a profile custom-field key: `customFields[key]` with memberData fallbacks
+ * (same idea as edit profile / ingest: title, organization, location, etc.).
+ */
+export function getProfileCustomFieldEffectiveValue(profile, key) {
+  if (!profile || key == null || key === "") return "";
+  const k = String(key);
+  const cf = profile.customFields || {};
+  const md = profile.memberData;
+  const fromCf = (cf[k] ?? "").toString().trim();
+  if (!md || typeof md !== "object") return fromCf;
+
+  switch (k) {
+    case "title": {
+      const t =
+        fromCf ||
+        (Array.isArray(md.title) ? md.title.filter(Boolean).join("; ") : md.title) ||
+        "";
+      return String(t).trim();
+    }
+    case "organization":
+      return (fromCf || md.organization || "").toString().trim();
+    case "country":
+      return (fromCf || arrJoin(md.location?.countries)).toString().trim();
+    case "state":
+      return (fromCf || (md.location?.stateProvince ?? "")).toString().trim();
+    case "city":
+      return (fromCf || (md.location?.city ?? "")).toString().trim();
+    case "classification":
+      return (
+        fromCf ||
+        (Array.isArray(md.classification) ? md.classification.join("; ") : md.classification || "")
+      )
+        .toString()
+        .trim();
+    case "gender":
+      return (fromCf || md.gender || "").toString().trim();
+    case "phone":
+      return (fromCf || md.phone || "").toString().trim();
+    case "profileUrl":
+      return (fromCf || arrJoin(md.profileWebsites)).toString().trim();
+    case "fieldsOfStudy":
+      return (fromCf || arrJoin(md.fieldsOfStudy)).toString().trim();
+    case "areasOfInterest":
+      return (fromCf || arrJoin(md.areasOfInterest)).toString().trim();
+    case "topicsOfInterest":
+      return (fromCf || arrJoin(md.topicsOfInterest)).toString().trim();
+    case "networkActivities":
+      return (fromCf || arrJoin(md.networkActivities)).toString().trim();
+    case "languagesSpoken":
+      return (fromCf || arrJoin(md.languagesSpoken)).toString().trim();
+    case "countryOfOrigin":
+      return (fromCf || arrJoin(md.countryOfOrigin)).toString().trim();
+    case "workCountries":
+      return (fromCf || arrJoin(md.workCountries)).toString().trim();
+    case "memberStatus":
+      return (fromCf || (md.status != null ? String(md.status) : "")).toString().trim();
+    default:
+      return fromCf;
+  }
+}
+
+/** Lowercase blob for keyword search (name, bio, customFields, directory/import fields). */
+export function getProfileSearchHaystack(profile) {
+  if (!profile) return "";
+  const parts = [
+    profile.name,
+    profile.username,
+    profile.bio,
+    profile.email,
+    profile.sourceMemberId != null && profile.sourceMemberId !== "" ? String(profile.sourceMemberId) : "",
+  ];
+  Object.values(profile.customFields ?? {}).forEach((v) => {
+    if (v != null && String(v).trim() !== "") parts.push(String(v));
+  });
+  getImportedSummaryRows(profile).forEach((r) => {
+    if (r.value != null && String(r.value).trim() !== "") parts.push(String(r.value));
+  });
+  if (profile.memberData && typeof profile.memberData === "object") {
+    try {
+      parts.push(JSON.stringify(profile.memberData));
+    } catch {
+      /* ignore */
+    }
+  }
+  return parts.filter(Boolean).join(" ").toLowerCase();
+}
+
+/**
  * Primary + secondary line for list rows (explore sidebar, profileviewbox).
  */
 export function getImportedListSubtitle(profile) {

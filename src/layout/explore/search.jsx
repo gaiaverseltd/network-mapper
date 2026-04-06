@@ -5,6 +5,10 @@ import UserCard from "../../component/user-card";
 import { useAllProfiles, useCustomFieldsForProfile, useClassificationTagOptions } from "../../hooks/queries";
 import { getTagsByCategoryId } from "../../service/Auth/database";
 import { recordSearchRequest } from "../../service/searchAnalytics";
+import {
+  getProfileSearchHaystack,
+  getProfileCustomFieldEffectiveValue,
+} from "../../component/imported-profile-summary";
 import { useUserdatacontext } from "../../service/context/usercontext";
 import { suggestSearchFiltersCallable } from "../../service/Auth";
 import { Link } from "react-router-dom";
@@ -73,6 +77,10 @@ export default function Search({ bio = false, filters = {}, onFiltersChange }) {
         }
         return base;
       }),
+      directoryScope: [
+        { value: "directory", label: "Directory / imported members only" },
+        { value: "not_directory", label: "Exclude directory / imported members" },
+      ],
     }),
     [classificationOptions, profileCustomFields, lookupTagsByKey]
   );
@@ -83,22 +91,34 @@ export default function Search({ bio = false, filters = {}, onFiltersChange }) {
     let list = allusers;
     if (keyword) {
       const re = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-      list = list.filter(
-        (user) =>
-          re.test(user?.username ?? "") ||
-          re.test(user?.name ?? "") ||
-          re.test(user?.bio ?? "")
-      );
+      list = list.filter((user) => re.test(getProfileSearchHaystack(user)));
     }
     const classificationTagId = (filters.classificationTagId ?? "").trim();
     if (classificationTagId) {
       list = list.filter((user) => (user?.classificationTagId ?? "") === classificationTagId);
     }
+    const directoryScope = (filters.directoryScope ?? "").trim();
+    const hasMemberData = (user) =>
+      !!(user?.memberData && typeof user.memberData === "object" && Object.keys(user.memberData).length > 0);
+    if (directoryScope === "directory") {
+      list = list.filter(hasMemberData);
+    } else if (directoryScope === "not_directory") {
+      list = list.filter((user) => !hasMemberData(user));
+    }
+    const sourceMemberIdFilter = (filters.sourceMemberId ?? "").trim();
+    if (sourceMemberIdFilter) {
+      const q = sourceMemberIdFilter.toLowerCase();
+      list = list.filter((user) =>
+        String(user?.sourceMemberId ?? "")
+          .toLowerCase()
+          .includes(q)
+      );
+    }
     profileCustomFields.forEach((field) => {
       const filterVal = (filters[field.key] ?? "").trim();
       if (!filterVal) return;
       list = list.filter((user) => {
-        const val = (user?.customFields?.[field.key] ?? "").toString().trim();
+        const val = getProfileCustomFieldEffectiveValue(user, field.key);
         if (field.type === "lookup") return val === filterVal;
         if (field.type === "file" || field.type === "image") {
           const hasFile = !!val;
@@ -168,8 +188,7 @@ export default function Search({ bio = false, filters = {}, onFiltersChange }) {
       try {
         const data = await suggestSearchFiltersCallable(trimmed, filterSchema);
         const suggested = data?.filters && typeof data.filters === "object" ? data.filters : {};
-        const nextFilters = { ...suggested };
-        onFiltersChange?.(nextFilters);
+        onFiltersChange?.((prev) => ({ ...(prev && typeof prev === "object" ? prev : {}), ...suggested }));
       } catch (err) {
         console.error("suggestSearchFilters:", err);
         const code = err?.code ?? err?.details?.code;
@@ -188,6 +207,8 @@ export default function Search({ bio = false, filters = {}, onFiltersChange }) {
   const hasAnyParam =
     keyword !== "" ||
     (filters.classificationTagId ?? "").trim() !== "" ||
+    (filters.directoryScope ?? "").trim() !== "" ||
+    (filters.sourceMemberId ?? "").trim() !== "" ||
     profileCustomFields.some((f) => (filters[f.key] ?? "").trim() !== "");
   const showLocalResults = hasAnyParam;
 

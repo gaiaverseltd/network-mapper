@@ -47,6 +47,16 @@ function buildFilterSchemaPrompt(filterSchema) {
       }
     });
   }
+  if (filterSchema.directoryScope && filterSchema.directoryScope.length > 0) {
+    parts.push(
+      "Directory scope (key 'directoryScope', exact value): " +
+        filterSchema.directoryScope.map((o) => `"${o.label}" -> "${o.value}"`).join(", ") +
+        ". Use empty string or omit to mean any."
+    );
+  }
+  parts.push(
+    "Source member ID (key 'sourceMemberId'): substring to match the profile's source member id from directory import."
+  );
   return parts.length ? parts.join("\n") : "No filters available.";
 }
 
@@ -78,6 +88,7 @@ Rules:
 - When the user implies gender (e.g. "a man", "man", "male", "a woman", "woman", "female"), include the corresponding gender filter. Use the exact field key and option id from the available filters (e.g. if there is a gender/lookup field with options like Male, Female, use the id for "Male" when the user says man/male, and for "Female" when they say woman/female).
 - Use only the exact filter keys and values described in the available filters. For select/lookup filters always use the exact option id as the value.
 - Only include filters that are clearly implied by the question.
+- Optional keys: "directoryScope" = "directory" when the user wants profiles with directory member data, or "not_directory" when excluding them. "sourceMemberId" = substring to match imported source member id.
 - Return ONLY valid JSON, no markdown, no code block, no explanation. Example for "A man named Chris" (when a gender filter with a male option exists): {"keyword":"Chris","<genderFieldKey>":"<maleOptionId>"}`;
 
   const userPrompt = `User question: "${trimmed}"
@@ -113,6 +124,18 @@ Return JSON object of filters to apply:`;
     if (typeof out.keyword !== "string" || !out.keyword.trim()) {
       out.keyword = trimmed;
     }
+    const ds = typeof out.directoryScope === "string" ? out.directoryScope.trim() : "";
+    if (ds === "directory" || ds === "not_directory") {
+      out.directoryScope = ds;
+    } else {
+      delete out.directoryScope;
+    }
+    if (typeof out.sourceMemberId === "string") {
+      out.sourceMemberId = out.sourceMemberId.trim();
+      if (!out.sourceMemberId) delete out.sourceMemberId;
+    } else {
+      delete out.sourceMemberId;
+    }
     return { filters: out };
   } catch (err) {
     console.error("suggestSearchFilters:", err);
@@ -120,7 +143,7 @@ Return JSON object of filters to apply:`;
   }
 }
 
-exports.suggestSearchFilters = onCall({ cors: true }, async (request) => {
+exports.suggestSearchFilters = onCall({ invoker: "public", cors: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be signed in to suggest filters.");
   }

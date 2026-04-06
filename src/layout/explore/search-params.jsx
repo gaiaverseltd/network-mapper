@@ -1,5 +1,6 @@
 /**
- * Search params panel – filters based on profile fields (name, username, bio, custom fields).
+ * Search params panel – filters based on profile fields (keyword, classification, directory snapshot,
+ * source member id, and configured custom fields; values match customFields + memberData like edit profile).
  * Renders in the right column of the explore/search page.
  * Text-like fields show a select of distinct values from profiles when available.
  */
@@ -8,6 +9,7 @@ import React, { useCallback, useMemo } from "react";
 import { useCustomFieldsForProfile, useAllProfiles, useClassificationTagOptions } from "../../hooks/queries";
 import { useQueries } from "@tanstack/react-query";
 import { getTagsByCategoryId } from "../../service/Auth/database";
+import { getProfileCustomFieldEffectiveValue } from "../../component/imported-profile-summary";
 
 const inputClass =
   "w-full px-3 py-2 rounded-lg bg-bg-default border border-border-default text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent-500/50 placeholder:text-text-tertiary";
@@ -43,7 +45,7 @@ export default function SearchParams({ filters = {}, onFiltersChange }) {
       if (field.type === "lookup" || field.type === "file" || field.type === "image") return;
       const set = new Set();
       allProfiles.forEach((p) => {
-        const v = (p?.customFields?.[field.key] ?? "").toString().trim();
+        const v = getProfileCustomFieldEffectiveValue(p, field.key);
         if (v) set.add(v);
       });
       const arr = Array.from(set).sort((a, b) => (a || "").localeCompare(b || "", undefined, { sensitivity: "base" }));
@@ -60,14 +62,20 @@ export default function SearchParams({ filters = {}, onFiltersChange }) {
   );
 
   const clearAll = useCallback(() => {
-    const next = { keyword: "", classificationTagId: "" };
-    profileCustomFields.forEach((f) => (next[f.key] = ""));
-    onFiltersChange?.(() => next);
+    onFiltersChange?.(() => {
+      const next = { keyword: "", classificationTagId: "", directoryScope: "", sourceMemberId: "" };
+      profileCustomFields.forEach((f) => {
+        next[f.key] = "";
+      });
+      return next;
+    });
   }, [onFiltersChange, profileCustomFields]);
 
   const hasAnyFilter =
     (filters.keyword ?? "").trim() !== "" ||
     (filters.classificationTagId ?? "").trim() !== "" ||
+    (filters.directoryScope ?? "").trim() !== "" ||
+    (filters.sourceMemberId ?? "").trim() !== "" ||
     profileCustomFields.some((f) => (filters[f.key] ?? "").trim() !== "");
 
   return (
@@ -92,7 +100,31 @@ export default function SearchParams({ filters = {}, onFiltersChange }) {
               type="search"
               value={filters.keyword ?? ""}
               onChange={(e) => setFilter("keyword", e.target.value)}
-              placeholder="Name, username, or bio…"
+              placeholder="Name, username, bio, directory fields…"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>Directory data</label>
+            <select
+              value={filters.directoryScope ?? ""}
+              onChange={(e) => setFilter("directoryScope", e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Any</option>
+              <option value="directory">Has directory snapshot (member data)</option>
+              <option value="not_directory">No directory snapshot</option>
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>Source member ID</label>
+            <input
+              type="text"
+              value={filters.sourceMemberId ?? ""}
+              onChange={(e) => setFilter("sourceMemberId", e.target.value)}
+              placeholder="Partial match on imported member id…"
               className={inputClass}
             />
           </div>
