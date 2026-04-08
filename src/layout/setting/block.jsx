@@ -64,7 +64,7 @@ export default function Block() {
           </div>
           <p className="text-sm text-text-secondary leading-relaxed">
             When your account is public, your profile and posts can be seen by
-            anyone, on or off Accel Net, even if they don't have an Accel Net
+            anyone, on or off NetMap, even if they don't have an NetMap
             account.
           </p>
         </div>

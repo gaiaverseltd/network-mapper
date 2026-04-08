@@ -82,7 +82,7 @@ function Mobilenavbar({ navbar, setpost }) {
                   whileTap={{ scale: 0.95 }}
                   className="text-2xl font-bold text-gradient cursor-pointer"
                 >
-                  Accel Net
+                  NetMap
                 </motion.h1>
               </Link>
 

@@ -57,7 +57,27 @@ function buildKeywordTerms(input) {
     .split(/\s+/)
     .map((t) => t.trim())
     .filter(Boolean);
-  const stop = new Set(["in", "on", "at", "the", "a", "an", "of", "for", "to", "and", "or"]);
+  const stop = new Set([
+    "in",
+    "on",
+    "at",
+    "the",
+    "a",
+    "an",
+    "of",
+    "for",
+    "to",
+    "and",
+    "or",
+    "named",
+    "called",
+    "with",
+    "who",
+    "whose",
+    "that",
+    "from",
+    "by",
+  ]);
   return raw.filter((t) => !stop.has(t));
 }
 
@@ -236,7 +256,24 @@ export default function Search({ bio = false, filters = {}, onFiltersChange }) {
       try {
         const data = await suggestSearchFiltersCallable(trimmed, filterSchema);
         const suggested = data?.filters && typeof data.filters === "object" ? data.filters : {};
-        onFiltersChange?.((prev) => ({ ...(prev && typeof prev === "object" ? prev : {}), ...suggested }));
+        onFiltersChange?.(() => {
+          const fresh = {
+            keyword: "",
+            classificationTagId: "",
+            directoryScope: "",
+            sourceMemberId: "",
+          };
+          profileCustomFields.forEach((f) => {
+            fresh[f.key] = "";
+          });
+          Object.entries(suggested).forEach(([k, v]) => {
+            if (v == null) return;
+            const val = String(v).trim();
+            if (val) fresh[k] = val;
+          });
+          if (!fresh.keyword) fresh.keyword = trimmed;
+          return fresh;
+        });
       } catch (err) {
         console.error("suggestSearchFilters:", err);
         const code = err?.code ?? err?.details?.code;
@@ -249,7 +286,7 @@ export default function Search({ bio = false, filters = {}, onFiltersChange }) {
         setSuggestLoading(false);
       }
     },
-    [question, userdata?.uid, suggestLoading, filterSchema, onFiltersChange]
+    [question, userdata?.uid, suggestLoading, filterSchema, onFiltersChange, profileCustomFields]
   );
 
   const hasAnyParam =

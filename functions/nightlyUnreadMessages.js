@@ -61,14 +61,14 @@ exports.nightlyUnreadMessagesEmail = onSchedule(
         const name = (profile.name || profile.username || "there").toString().trim();
         const displayName = name === "there" ? "there" : name.split(/\s+/)[0];
         const subject = count === 1
-          ? "You have 1 unread message on Accel Net"
-          : `You have ${count} unread messages on Accel Net`;
+          ? "You have 1 unread message on NetMap"
+          : `You have ${count} unread messages on NetMap`;
 
         const html = `
           <div style="font-family: system-ui, sans-serif; max-width: 500px; margin: 0 auto;">
             <h2 style="color: #1a1a1a;">Hi ${displayName},</h2>
             <p style="font-size: 16px; line-height: 1.5; color: #333;">
-              You have ${count === 1 ? "1 unread message" : count + " unread messages"} on Accel Net.
+              You have ${count === 1 ? "1 unread message" : count + " unread messages"} on NetMap.
             </p>
             <p style="margin-top: 24px;">
               <a href="${messagesUrl}" style="display: inline-block; padding: 12px 24px; background: #1d9bf0; color: white; text-decoration: none; border-radius: 9999px; font-weight: 600;">
@@ -76,7 +76,7 @@ exports.nightlyUnreadMessagesEmail = onSchedule(
               </a>
             </p>
             <p style="margin-top: 32px; font-size: 13px; color: #888;">
-              This is a daily reminder from Accel Net. You can adjust your notification preferences in settings.
+              This is a daily reminder from NetMap. You can adjust your notification preferences in settings.
             </p>
           </div>
         `;

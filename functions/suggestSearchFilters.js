@@ -96,6 +96,8 @@ Rules:
 - For "keyword": extract the main search term. Examples: "A man named Chris" -> include keyword "Chris"; "someone called Sarah" -> keyword "Sarah". Always include "keyword" with the most relevant short phrase (name, topic, or role).
 - When the user implies gender (e.g. "a man", "man", "male", "a woman", "woman", "female"), include the corresponding gender filter. Use the exact field key and option id from the available filters (e.g. if there is a gender/lookup field with options like Male, Female, use the id for "Male" when the user says man/male, and for "Female" when they say woman/female).
 - Prefer specific field filters over dumping everything into keyword when a clear field mapping exists (country, state, city, title, organization, memberStatus, classification, fieldsOfStudy, areasOfInterest, countryOfOrigin, workCountries).
+- Treat profession/category nouns (e.g. scientist, researcher, educator, developer) as classification intent first. Use "classificationTagId" when options match; otherwise use the "classification" custom field key if available.
+- Do NOT map those nouns to "title" unless the user explicitly asks for job title/role title wording.
 - If classificationTagId options are empty or do not match the wording, use the custom field key (for example "classification") if available.
 - For location intent, map "country" to key "country", "state/province/region" to key "state", and "city/town" to key "city" when those keys exist.
 - Use only the exact filter keys and values described in the available filters. For select/lookup filters always use the exact option id as the value.

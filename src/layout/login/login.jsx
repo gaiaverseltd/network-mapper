@@ -45,7 +45,7 @@ const Login = ({ onenter, role }) => {
       {/* Header */}
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-bold text-text-primary mb-2">
-          {isLogin ? "Welcome back" : "Join Accel Net"}
+          {isLogin ? "Welcome back" : "Join NetMap"}
         </h1>
         <p className="text-text-secondary text-[15px]">
           {isLogin

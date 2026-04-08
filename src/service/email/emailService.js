@@ -15,7 +15,7 @@
  * 
  * Option 2 - Firebase Cloud Function with Inboxroad API (Recommended for production):
  * 1. Get Inboxroad API token: https://www.inboxroad.com/obtain-api-token
- * 2. Configure: firebase functions:config:set inboxroad.token="YOUR_TOKEN" inboxroad.from_email="noreply@yourdomain.com" inboxroad.from_name="Accel Net"
+ * 2. Configure: firebase functions:config:set inboxroad.token="YOUR_TOKEN" inboxroad.from_email="noreply@yourdomain.com" inboxroad.from_name="NetMap"
  * 3. Deploy: firebase deploy --only functions
  * 5. Add to .env:
  *    VITE_CloudFunction_EmailUrl=https://your-region-your-project.cloudfunctions.net/sendNotificationEmail
@@ -114,7 +114,7 @@ const sendEmailViaEmailJS = async (toEmail, notificationType, notificationData) 
     const templateParams = {
       to_email: toEmail,
       to_name: notificationData.recipientName || "User",
-      from_name: notificationData.actorName || "Accel Net",
+      from_name: notificationData.actorName || "NetMap",
       subject: emailContent.subject,
       message: emailContent.message,
       notification_type: notificationType,
@@ -246,16 +246,16 @@ const formatNotificationEmail = (notificationType, notificationData) => {
 
   const notificationTemplates = {
     postlike: {
-      subject: `${actorName} liked your post on Accel Net`,
+      subject: `${actorName} liked your post on NetMap`,
       message: `${actorName} (@${actorUsername}) liked your post.`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #1d9bf0;">New Like on Your Post</h2>
           <p>Hi there!</p>
-          <p><strong>${actorName}</strong> (@${actorUsername}) liked your post on Accel Net.</p>
+          <p><strong>${actorName}</strong> (@${actorUsername}) liked your post on NetMap.</p>
           ${postUrl ? `<p><a href="${postUrl}" style="color: #1d9bf0; text-decoration: none;">View your post →</a></p>` : ""}
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on Accel Net.</p>
+          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on NetMap.</p>
         </div>
       `,
     },
@@ -272,7 +272,7 @@ const formatNotificationEmail = (notificationType, notificationData) => {
           </blockquote>
           ${postUrl ? `<p><a href="${postUrl}" style="color: #1d9bf0; text-decoration: none;">View and reply →</a></p>` : ""}
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on Accel Net.</p>
+          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on NetMap.</p>
         </div>
       `,
     },
@@ -286,38 +286,38 @@ const formatNotificationEmail = (notificationType, notificationData) => {
           <p><strong>${actorName}</strong> (@${actorUsername}) replied to your comment.</p>
           ${postUrl ? `<p><a href="${postUrl}" style="color: #1d9bf0; text-decoration: none;">View the conversation →</a></p>` : ""}
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on Accel Net.</p>
+          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on NetMap.</p>
         </div>
       `,
     },
     message: {
-      subject: `${actorName} sent you a message on Accel Net`,
+      subject: `${actorName} sent you a message on NetMap`,
       message: `${actorName} (@${actorUsername}) sent you a message: "${(notificationData.postContent || "").substring(0, 50)}${(notificationData.postContent || "").length > 50 ? "..." : ""}"`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #1d9bf0;">New Message</h2>
           <p>Hi there!</p>
-          <p><strong>${actorName}</strong> (@${actorUsername}) sent you a message on Accel Net:</p>
+          <p><strong>${actorName}</strong> (@${actorUsername}) sent you a message on NetMap:</p>
           <blockquote style="border-left: 3px solid #1d9bf0; padding-left: 15px; margin: 15px 0; color: #666;">
             ${(notificationData.postContent || "").substring(0, 200)}${(notificationData.postContent || "").length > 200 ? "..." : ""}
           </blockquote>
           ${postUrl ? `<p><a href="${postUrl}" style="color: #1d9bf0; text-decoration: none;">View message →</a></p>` : ""}
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on Accel Net.</p>
+          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on NetMap.</p>
         </div>
       `,
     },
     follow: {
-      subject: `${actorName} started following you on Accel Net`,
-      message: `${actorName} (@${actorUsername}) started following you on Accel Net.`,
+      subject: `${actorName} started following you on NetMap`,
+      message: `${actorName} (@${actorUsername}) started following you on NetMap.`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #1d9bf0;">New Follower</h2>
           <p>Hi there!</p>
-          <p><strong>${actorName}</strong> (@${actorUsername}) started following you on Accel Net.</p>
+            <p><strong>${actorName}</strong> (@${actorUsername}) started following you on NetMap.</p>
           <p><a href="${baseUrl}/profile/${actorUsername}" style="color: #1d9bf0; text-decoration: none;">View their profile →</a></p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on Accel Net.</p>
+          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on NetMap.</p>
         </div>
       `,
     },
@@ -331,7 +331,7 @@ const formatNotificationEmail = (notificationType, notificationData) => {
           <p><strong>${actorName}</strong> (@${actorUsername}) liked your comment.</p>
           ${postUrl ? `<p><a href="${postUrl}" style="color: #1d9bf0; text-decoration: none;">View the comment →</a></p>` : ""}
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on Accel Net.</p>
+          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on NetMap.</p>
         </div>
       `,
     },
@@ -345,20 +345,20 @@ const formatNotificationEmail = (notificationType, notificationData) => {
           <p><strong>${actorName}</strong> (@${actorUsername}) liked your reply.</p>
           ${postUrl ? `<p><a href="${postUrl}" style="color: #1d9bf0; text-decoration: none;">View the reply →</a></p>` : ""}
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on Accel Net.</p>
+            <p style="color: #666; font-size: 12px;">You're receiving this because you have notifications enabled on NetMap.</p>
         </div>
       `,
     },
   };
 
   return notificationTemplates[notificationType] || {
-    subject: `New notification on Accel Net`,
-    message: `You have a new notification on Accel Net.`,
+    subject: `New notification on NetMap`,
+    message: `You have a new notification on NetMap.`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #1d9bf0;">New Notification</h2>
         <p>Hi there!</p>
-        <p>You have a new notification on Accel Net.</p>
+          <p>You have a new notification on NetMap.</p>
         <p><a href="${baseUrl}/notification" style="color: #1d9bf0; text-decoration: none;">View notifications →</a></p>
       </div>
     `,

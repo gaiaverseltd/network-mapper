@@ -18,12 +18,12 @@ const Signuppage = () => {
     <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6">
       <Helmet>
         <title>Sign up | NetMap</title>
-        <meta name="description" content="Sign up for Accel Net" />
+        <meta name="description" content="Sign up for NetMap" />
         <link rel="canonical" href="/" />
         <meta name="robots" content="index, follow" />
        
-        <meta name="keywords" content="sign up, accel net, register" />
-        <meta name="author" content="Accel Net" />
+        <meta name="keywords" content="sign up, netmap, register" />
+        <meta name="author" content="NetMap" />
         <meta name="language" content="EN" />
       </Helmet>
 

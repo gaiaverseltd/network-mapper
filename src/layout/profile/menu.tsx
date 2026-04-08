@@ -39,8 +39,8 @@ function Menu({ setactive, profileuserdata, setprofileuserdata }) {
           onClick={() => {
             navigator.share({
               title:
-                "Spreading the Vibes: Check Out My Latest Accel Net Post! ",
-              text: "Embark on a journey through elegance and excitement! My newest post on Accel Net is here to dazzle your feed. Swipe up to experience the glitz, glamour, and all things fabulous!",
+                "Spreading the Vibes: Check Out My Latest NetMap Post! ",
+              text: "Embark on a journey through elegance and excitement! My newest post on NetMap is here to dazzle your feed. Swipe up to experience the glitz, glamour, and all things fabulous!",
               url: window.location.href,
             });
             setactive("");

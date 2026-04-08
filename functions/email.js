@@ -11,7 +11,7 @@ const MAILGUN_DOMAIN = defineString("MAILGUN_DOMAIN", {
   default: "sandbox25e3e4eff380415ba1f48111d617ca82.mailgun.org",
 });
 const MAILGUN_FROM_EMAIL = defineString("MAILGUN_FROM_EMAIL", {
-  default: "Accel Net <mailgun@sandbox25e3e4eff380415ba1f48111d617ca82.mailgun.org>",
+  default: "NetMap <mailgun@sandbox25e3e4eff380415ba1f48111d617ca82.mailgun.org>",
 });
 const MAILGUN_BASE_URL = defineString("MAILGUN_BASE_URL", { default: "https://api.mailgun.net" });
 
@@ -31,7 +31,7 @@ async function sendEmailViaMailgun(payload) {
   const params = new URLSearchParams();
   params.append("from", fromEmail);
   params.append("to", payload.to);
-  params.append("subject", payload.subject || "Notification from Accel Net");
+  params.append("subject", payload.subject || "Notification from NetMap");
   params.append("text", payload.text || (payload.html ? payload.html.replace(/<[^>]*>/g, "") : ""));
   if (payload.html) params.append("html", payload.html);
 

@@ -22,12 +22,12 @@ export const Loginpage = () => {
     <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6">
       <Helmet>
         <title>Login | NetMap</title>
-        <meta name="description" content="Login to Accel Net" />
+        <meta name="description" content="Login to NetMap" />
         <link rel="canonical" href="/login" />
         <meta name="robots" content="index, follow" />
        
-        <meta name="keywords" content="login, accel net" />
-        <meta name="author" content="Accel Net" />
+        <meta name="keywords" content="login, netmap" />
+        <meta name="author" content="NetMap" />
         <meta name="language" content="EN" />
       </Helmet>
       <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-8 lg:gap-12">

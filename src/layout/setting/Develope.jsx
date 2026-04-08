@@ -45,7 +45,7 @@ const DeveloperContact = () => {
         <div className="flex flex-col gap-6">
           <p className="text-[15px] text-text-secondary text-center">
             Reach out to the developer for inquiries, suggestions, or feedback
-            about Accel Net!
+            about NetMap!
           </p>
 
           {/* Email */}

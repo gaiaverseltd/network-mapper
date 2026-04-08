@@ -16,7 +16,7 @@ export const config = {
 
   // App metadata
   app: {
-    name: "Accel Net",
+    name: "NetMap",
     description: "Premium social media platform",
     version: "4.1.0",
   },
