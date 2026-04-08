@@ -29,7 +29,7 @@ export default function Seepost() {
   return (
     <Fragment>
       <Helmet>
-        <title>Post | {username} | Accel Net</title>
+        <title>Post | {username} | NetMap</title>
         <meta name="description" content={`Post by ${username}`} />
         <link rel="canonical" href={`/profile/${username}/${postid}`} />
       </Helmet>

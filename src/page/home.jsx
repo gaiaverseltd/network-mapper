@@ -44,7 +44,7 @@ export const Home = () => {
   return (
     <Fragment>
       <Helmet>
-        <title>Home | Accel Net</title>
+        <title>Home | NetMap</title>
       </Helmet>
       
       {/* Sticky Header */}

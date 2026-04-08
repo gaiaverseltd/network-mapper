@@ -13,7 +13,7 @@ export default function EditProfile() {
   return (
     <>
       <Helmet>
-        <title>Edit profile | Accel Net</title>
+        <title>Edit profile | NetMap</title>
       </Helmet>
 
       <div className="w-full flex flex-col min-h-screen">

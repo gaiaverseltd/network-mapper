@@ -13,7 +13,7 @@
  * Options:
  *   --count N     Number of users to create (default: 10)
  *   --dry-run     Preview only; no writes
- *   --password P  Password for new users (default: AccelNet2024!)
+ *   --password P  Password for new users (default: NetMap2024!)
  *   --seed N      Faker seed for reproducible data (optional)
  */
 
@@ -38,7 +38,7 @@ function getCount() {
 }
 const dryRun = args.includes("--dry-run");
 const count = Math.min(Math.max(1, getCount()), 500);
-const defaultPassword = getFlag("--password", "AccelNet2024!");
+const defaultPassword = getFlag("--password", "NetMap2024!");
 const seedArg = getFlag("--seed", "");
 if (seedArg) faker.seed(parseInt(seedArg, 10) || 0);
 

@@ -129,7 +129,7 @@ const CreateAccount = () => {
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-8 sm:py-12">
       <Helmet>
-        <title>Create account | Accel Net</title>
+        <title>Create account | NetMap</title>
         <meta name="description" content="Create account" />
         <link rel="canonical" href="/Create account" />
         <meta name="robots" content="index, follow" />

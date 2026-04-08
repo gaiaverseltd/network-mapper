@@ -21,7 +21,7 @@ export const Loginpage = () => {
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6">
       <Helmet>
-        <title>Login | Accel Net</title>
+        <title>Login | NetMap</title>
         <meta name="description" content="Login to Accel Net" />
         <link rel="canonical" href="/login" />
         <meta name="robots" content="index, follow" />

@@ -10,7 +10,7 @@ export const Profilepage = () => {
   return (
     <Fragment>
       <Helmet>
-        <title>Profile | {username} | AccelNet</title>
+        <title>Profile | {username} | NetMap</title>
         <meta name="description" content="Profile" />
         <link rel="canonical" href="/Profile" />
         <meta name="robots" content="index, follow" />       

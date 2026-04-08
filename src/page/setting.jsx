@@ -57,7 +57,7 @@ export default function Setting() {
   return (
     <Fragment>
       <Helmet>
-        <title>Settings | Accel Net</title>
+        <title>Settings | NetMap</title>
       </Helmet>
       
       <div className="w-full flex flex-col md:flex-row h-screen overflow-hidden">

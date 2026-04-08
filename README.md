@@ -45,7 +45,7 @@ Ingest users and profiles from `./data/2024.csv` (creates Firebase Auth users an
    - **Custom file**: `pnpm ingest:users --file ./data/other.csv`
    - **Custom password**: `pnpm ingest:users --password "YourTempPassword"`
 
-New users are created with the default password `AccelNet2024!` (or your custom one) and should reset it on first login.
+New users are created with the default password `NetMap2024!` (or your custom one) and should reset it on first login.
 
 ## Other scripts
 

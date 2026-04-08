@@ -157,7 +157,7 @@ export const AdminCustomFields = () => {
   return (
     <Fragment>
       <Helmet>
-        <title>Custom fields | Admin | Accel Net</title>
+        <title>Custom fields | Admin | NetMap</title>
       </Helmet>
 
       <div className="sticky top-0 z-20 bg-bg-default/80 backdrop-blur-xl border-b border-border-default">

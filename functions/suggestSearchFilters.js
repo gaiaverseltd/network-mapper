@@ -57,6 +57,15 @@ function buildFilterSchemaPrompt(filterSchema) {
   parts.push(
     "Source member ID (key 'sourceMemberId'): substring to match the profile's source member id from directory import."
   );
+  parts.push(
+    "Profile storage notes: most searchable profile attributes are stored under customFields (e.g. title, organization, country, state, city, gender, fieldsOfStudy, areasOfInterest, countryOfOrigin, workCountries, memberStatus, profileUrl)."
+  );
+  parts.push(
+    "Directory-imported profiles may also have memberData; query intent should still map to the customFields key when available."
+  );
+  parts.push(
+    "Common mappings: status/current/alumni -> memberStatus; country -> country; state/province/region -> state; city -> city; role/job -> title; company/university/institution -> organization."
+  );
   return parts.length ? parts.join("\n") : "No filters available.";
 }
 
@@ -86,6 +95,9 @@ async function runSuggestSearchFilters(trimmed, filterSchema) {
 Rules:
 - For "keyword": extract the main search term. Examples: "A man named Chris" -> include keyword "Chris"; "someone called Sarah" -> keyword "Sarah". Always include "keyword" with the most relevant short phrase (name, topic, or role).
 - When the user implies gender (e.g. "a man", "man", "male", "a woman", "woman", "female"), include the corresponding gender filter. Use the exact field key and option id from the available filters (e.g. if there is a gender/lookup field with options like Male, Female, use the id for "Male" when the user says man/male, and for "Female" when they say woman/female).
+- Prefer specific field filters over dumping everything into keyword when a clear field mapping exists (country, state, city, title, organization, memberStatus, classification, fieldsOfStudy, areasOfInterest, countryOfOrigin, workCountries).
+- If classificationTagId options are empty or do not match the wording, use the custom field key (for example "classification") if available.
+- For location intent, map "country" to key "country", "state/province/region" to key "state", and "city/town" to key "city" when those keys exist.
 - Use only the exact filter keys and values described in the available filters. For select/lookup filters always use the exact option id as the value.
 - Only include filters that are clearly implied by the question.
 - Optional keys: "directoryScope" = "directory" when the user wants profiles with directory member data, or "not_directory" when excluding them. "sourceMemberId" = substring to match imported source member id.

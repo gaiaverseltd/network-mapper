@@ -24,6 +24,21 @@ const SUGGESTIONS = [
   "Network Members",
 ];
 
+const DEFAULT_PROFILE_FILTER_FIELDS = [
+  { key: "title", label: "Title", type: "text" },
+  { key: "organization", label: "Organization", type: "text" },
+  { key: "country", label: "Country", type: "text" },
+  { key: "state", label: "State/Province", type: "text" },
+  { key: "city", label: "City", type: "text" },
+  { key: "gender", label: "Gender", type: "text" },
+  { key: "fieldsOfStudy", label: "Fields of study", type: "text" },
+  { key: "areasOfInterest", label: "Areas of interest", type: "text" },
+  { key: "countryOfOrigin", label: "Country of origin", type: "text" },
+  { key: "workCountries", label: "Work countries", type: "text" },
+  { key: "memberStatus", label: "Member status", type: "text" },
+  { key: "profileUrl", label: "Profile URL", type: "text" },
+];
+
 function debounce(func, delay) {
   let timeoutId;
   return (...args) => {
@@ -44,10 +59,14 @@ export default function Search({ bio = false, filters = {}, onFiltersChange }) {
   const sentinelRef = useRef(null);
   const { data: allusers = [] } = useAllProfiles();
   const { data: profileCustomFieldsRaw = [] } = useCustomFieldsForProfile();
-  const profileCustomFields = useMemo(
-    () => profileCustomFieldsRaw.filter((f) => f.showAsFilter !== false),
-    [profileCustomFieldsRaw]
-  );
+  const profileCustomFields = useMemo(() => {
+    const configured = profileCustomFieldsRaw.filter((f) => f.showAsFilter !== false);
+    const byKey = new Map(configured.map((f) => [f.key, f]));
+    DEFAULT_PROFILE_FILTER_FIELDS.forEach((f) => {
+      if (!byKey.has(f.key)) byKey.set(f.key, { id: `builtin-${f.key}`, ...f, showAsFilter: true });
+    });
+    return Array.from(byKey.values());
+  }, [profileCustomFieldsRaw]);
   const { data: classificationOptions = [] } = useClassificationTagOptions();
   const lookups = useMemo(
     () => profileCustomFields.filter((f) => f.type === "lookup" && f.tagCategoryId),

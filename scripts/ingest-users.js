@@ -15,7 +15,7 @@
  *   --dry-run              Preview only; no writes
  *   --limit N              Process at most N records
  *   --file PATH            Input file (default: ./data/members.json)
- *   --password P           Default password for new Auth users (default: AccelNet2024!)
+ *   --password P           Default password for new Auth users (default: NetMap2024!)
  *   --include-duplicates   Import rows where isDuplicate === true (default: skip those)
  */
 
@@ -41,7 +41,7 @@ function getLimit() {
 const dryRun = args.includes("--dry-run");
 const limit = getLimit();
 const filePath = getFlag("--file", resolve(rootDir, "data", "members.json"));
-const defaultPassword = getFlag("--password", "AccelNet2024!");
+const defaultPassword = getFlag("--password", "NetMap2024!");
 const includeDuplicates = args.includes("--include-duplicates");
 
 const COLLECTION_PROFILES = "profiles";

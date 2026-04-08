@@ -16,13 +16,31 @@ const inputClass =
 const labelClass = "block text-sm font-medium text-text-secondary mb-1.5";
 
 const MAX_OPTIONS_FOR_SELECT = 100;
+const DEFAULT_PROFILE_FILTER_FIELDS = [
+  { key: "title", label: "Title", type: "text" },
+  { key: "organization", label: "Organization", type: "text" },
+  { key: "country", label: "Country", type: "text" },
+  { key: "state", label: "State/Province", type: "text" },
+  { key: "city", label: "City", type: "text" },
+  { key: "gender", label: "Gender", type: "text" },
+  { key: "fieldsOfStudy", label: "Fields of study", type: "text" },
+  { key: "areasOfInterest", label: "Areas of interest", type: "text" },
+  { key: "countryOfOrigin", label: "Country of origin", type: "text" },
+  { key: "workCountries", label: "Work countries", type: "text" },
+  { key: "memberStatus", label: "Member status", type: "text" },
+  { key: "profileUrl", label: "Profile URL", type: "text" },
+];
 
 export default function SearchParams({ filters = {}, onFiltersChange }) {
   const { data: profileCustomFieldsRaw = [] } = useCustomFieldsForProfile();
-  const profileCustomFields = useMemo(
-    () => profileCustomFieldsRaw.filter((f) => f.showAsFilter !== false),
-    [profileCustomFieldsRaw]
-  );
+  const profileCustomFields = useMemo(() => {
+    const configured = profileCustomFieldsRaw.filter((f) => f.showAsFilter !== false);
+    const byKey = new Map(configured.map((f) => [f.key, f]));
+    DEFAULT_PROFILE_FILTER_FIELDS.forEach((f) => {
+      if (!byKey.has(f.key)) byKey.set(f.key, { id: `builtin-${f.key}`, ...f, showAsFilter: true });
+    });
+    return Array.from(byKey.values());
+  }, [profileCustomFieldsRaw]);
   const { data: allProfiles = [] } = useAllProfiles();
   const { data: classificationOptions = [] } = useClassificationTagOptions();
   const lookups = profileCustomFields.filter((f) => f.type === "lookup" && f.tagCategoryId);
@@ -106,19 +124,6 @@ export default function SearchParams({ filters = {}, onFiltersChange }) {
           </div>
 
           <div>
-            <label className={labelClass}>Directory data</label>
-            <select
-              value={filters.directoryScope ?? ""}
-              onChange={(e) => setFilter("directoryScope", e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Any</option>
-              <option value="directory">Has directory snapshot (member data)</option>
-              <option value="not_directory">No directory snapshot</option>
-            </select>
-          </div>
-
-          <div>
             <label className={labelClass}>Source member ID</label>
             <input
               type="text"
@@ -128,24 +133,6 @@ export default function SearchParams({ filters = {}, onFiltersChange }) {
               className={inputClass}
             />
           </div>
-
-          {classificationOptions.length > 0 && (
-            <div>
-              <label className={labelClass}>Classification</label>
-              <select
-                value={filters.classificationTagId ?? ""}
-                onChange={(e) => setFilter("classificationTagId", e.target.value)}
-                className={inputClass}
-              >
-                <option value="">Any</option>
-                {classificationOptions.map((tag) => (
-                  <option key={tag.id} value={tag.id}>
-                    {tag.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {profileCustomFields.map((field) => (
             <div key={field.id}>

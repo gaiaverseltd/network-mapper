@@ -15,7 +15,7 @@ export default function Search() {
   return (
     <Fragment>
       <Helmet>
-        <title>Explore | AccelNet</title>
+        <title>Explore | NetMap</title>
         <meta name="description" content="Explore" />
         <link rel="canonical" href="/Explore" />
         <meta name="robots" content="index, follow" />

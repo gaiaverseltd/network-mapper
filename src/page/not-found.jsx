@@ -5,7 +5,7 @@ function Notfound() {
   return (
     <div className="flex justify-center align-middle w-full h-screen">
       <Helmet>
-        <title>Not found | AccelNet</title>
+        <title>Not found | NetMap</title>
         <meta name="description" content="login" />
         <link rel="canonical" href="/login" />
         <meta name="robots" content="index, follow" />

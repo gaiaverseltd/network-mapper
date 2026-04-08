@@ -17,7 +17,7 @@ const Signuppage = () => {
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6">
       <Helmet>
-        <title>Sign up | Accel Net</title>
+        <title>Sign up | NetMap</title>
         <meta name="description" content="Sign up for Accel Net" />
         <link rel="canonical" href="/" />
         <meta name="robots" content="index, follow" />

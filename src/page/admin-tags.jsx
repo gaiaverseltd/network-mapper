@@ -218,7 +218,7 @@ export const AdminTags = () => {
   return (
     <Fragment>
       <Helmet>
-        <title>Tags | Admin | Accel Net</title>
+        <title>Tags | Admin | NetMap</title>
       </Helmet>
 
       <div className="sticky top-0 z-20 bg-bg-default/80 backdrop-blur-xl border-b border-border-default">

@@ -12,7 +12,7 @@ export const List = () => {
   return (
     <Fragment>
       <Helmet>
-        <title>Bookmarks | Accel Net</title>
+        <title>Bookmarks | NetMap</title>
       </Helmet>
       
       {/* Sticky Header */}

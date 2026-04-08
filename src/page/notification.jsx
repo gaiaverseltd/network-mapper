@@ -21,7 +21,7 @@ export default function Notification() {
   return (
     <Fragment>
       <Helmet>
-        <title>Notifications | Accel Net</title>
+        <title>Notifications | NetMap</title>
       </Helmet>
       
       {/* Sticky Header */}

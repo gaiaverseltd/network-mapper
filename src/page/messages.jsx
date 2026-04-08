@@ -104,7 +104,7 @@ export default function Messages() {
   return (
     <>
       <Helmet>
-        <title>Messages | Accel Net</title>
+        <title>Messages | NetMap</title>
       </Helmet>
 
       <div className="flex flex-col min-h-screen h-screen w-full -mt-10 -pt-8 -mx-4 pr-4">

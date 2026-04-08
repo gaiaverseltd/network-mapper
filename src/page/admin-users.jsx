@@ -873,7 +873,7 @@ export const AdminUsers = () => {
   return (
     <Fragment>
       <Helmet>
-        <title>Users | Admin | Accel Net</title>
+        <title>Users | Admin | NetMap</title>
       </Helmet>
 
       {!isEditPage && (
