@@ -88,6 +88,9 @@ export default function SearchParams({ filters = {}, onFiltersChange }) {
       return next;
     });
   }, [onFiltersChange, profileCustomFields]);
+  const reassertFilters = useCallback(() => {
+    onFiltersChange?.((prev) => ({ ...(prev && typeof prev === "object" ? prev : {}) }));
+  }, [onFiltersChange]);
 
   const hasAnyFilter =
     (filters.keyword ?? "").trim() !== "" ||
@@ -112,6 +115,16 @@ export default function SearchParams({ filters = {}, onFiltersChange }) {
           )}
         </div>
         <div className="p-4 space-y-4">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={reassertFilters}
+              className="w-full px-3 py-2 rounded-lg bg-accent-500 hover:bg-accent-600 text-white text-sm font-medium transition-colors"
+            >
+              Search
+            </button>
+          </div>
+
           <div>
             <label className={labelClass}>Keyword</label>
             <input

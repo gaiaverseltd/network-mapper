@@ -468,8 +468,12 @@ export const updateprofileuserdata = async (userdata, username) => {
 };
 export const getallpost = async () => {
   try {
-    const list = await queryAll(profilesRef(), where("privacy", "==", false));
-    return list.map((p) => p.post).flat();
+    // Treat only explicit `privacy === true` as private; missing/null should remain visible.
+    const list = await queryAll(profilesRef());
+    return list
+      .filter((p) => p?.privacy !== true)
+      .map((p) => p.post)
+      .flat();
   } catch (err) {
     console.error("getallpost:", err);
     return [];
@@ -478,9 +482,13 @@ export const getallpost = async () => {
 
 export const getallprofile = async () => {
   try {
-    const list = await queryAll(profilesRef(), where("privacy", "==", false));
-    list.sort();
-    return list;
+    // Treat only explicit `privacy === true` as private; missing/null should remain visible.
+    const list = await queryAll(profilesRef());
+    const publicProfiles = list.filter((p) => p?.privacy !== true);
+    publicProfiles.sort((a, b) =>
+      (a?.name ?? a?.username ?? "").localeCompare(b?.name ?? b?.username ?? "", undefined, { sensitivity: "base" })
+    );
+    return publicProfiles;
   } catch (err) {
     console.error("getallprofile:", err);
     return [];

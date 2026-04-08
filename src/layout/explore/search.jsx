@@ -51,6 +51,16 @@ function debounce(func, delay) {
   };
 }
 
+function buildKeywordTerms(input) {
+  const raw = String(input || "")
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const stop = new Set(["in", "on", "at", "the", "a", "an", "of", "for", "to", "and", "or"]);
+  return raw.filter((t) => !stop.has(t));
+}
+
 export default function Search({ bio = false, filters = {}, onFiltersChange }) {
   const { userdata, defaultprofileimage } = useUserdatacontext();
   const [question, setQuestion] = useState("");
@@ -109,8 +119,18 @@ export default function Search({ bio = false, filters = {}, onFiltersChange }) {
   const relaventusers = useMemo(() => {
     let list = allusers;
     if (keyword) {
-      const re = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-      list = list.filter((user) => re.test(getProfileSearchHaystack(user)));
+      const terms = buildKeywordTerms(keyword);
+      if (terms.length > 0) {
+        list = list.filter((user) => {
+          const haystack = getProfileSearchHaystack(user);
+          return terms.every((term) => {
+            if (haystack.includes(term)) return true;
+            // Basic singular fallback: "researchers" should match "researcher".
+            if (term.endsWith("s") && term.length > 3) return haystack.includes(term.slice(0, -1));
+            return false;
+          });
+        });
+      }
     }
     const classificationTagId = (filters.classificationTagId ?? "").trim();
     if (classificationTagId) {
@@ -196,7 +216,16 @@ export default function Search({ bio = false, filters = {}, onFiltersChange }) {
     }
   }, [keyword, relaventusers, debouncedRecordSearch]);
 
-  const handleSuggestionClick = (s) => setQuestion(s);
+  const handleQuestionInputChange = useCallback(
+    (value) => {
+      setQuestion(value);
+      onFiltersChange?.((prev) => ({
+        ...(prev && typeof prev === "object" ? prev : {}),
+        keyword: value,
+      }));
+    },
+    [onFiltersChange]
+  );
 
   const handleNlpSubmit = useCallback(
     async (e) => {
@@ -242,7 +271,7 @@ export default function Search({ bio = false, filters = {}, onFiltersChange }) {
             type="search"
             value={question}
             name="search"
-            onChange={(e) => setQuestion(e.target.value)}
+            onChange={(e) => handleQuestionInputChange(e.target.value)}
             className="flex-1 min-h-[120px] px-6 py-5 pb-14 bg-transparent text-[17px] text-text-primary placeholder:text-text-tertiary focus:outline-none resize-none"
             placeholder="Ask a question?"
           />
@@ -269,7 +298,7 @@ export default function Search({ bio = false, filters = {}, onFiltersChange }) {
               <button
                 key={s}
                 type="button"
-                onClick={() => handleSuggestionClick(s)}
+                onClick={() => handleQuestionInputChange(s)}
                 className="px-4 py-2 rounded-full bg-bg-tertiary border border-border-default text-text-primary text-[15px] hover:bg-bg-hover hover:border-border-hover transition-colors"
               >
                 {s}
