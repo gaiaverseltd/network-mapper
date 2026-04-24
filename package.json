@@ -25,6 +25,7 @@
     "set-functions-config": "node scripts/set-functions-config.js",
     "deploy:functions": "node scripts/deploy-functions.js",
     "ingest:users": "node scripts/ingest-users.js",
+    "ingest:users:accelnet2": "node scripts/ingest-accelnet2-users.js",
     "seed:users": "node scripts/seed-users.js",
     "seed:custom-fields": "node scripts/seed-custom-fields.js",
     "seed:country-state-tags": "node scripts/seed-country-state-tags.js",

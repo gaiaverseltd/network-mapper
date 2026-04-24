@@ -21,6 +21,7 @@ import { MdLabel as LabelIcon } from "react-icons/md";
 import { MdEditAttributes as CustomFieldsIcon } from "react-icons/md";
 import { MdExpandMore as ExpandMoreIcon } from "react-icons/md";
 import { MdAdminPanelSettings as AdminIcon } from "react-icons/md";
+import { MdMap as MapIcon } from "react-icons/md";
 import Logo from "../../ui/logo";
 import Resetpassword from "../setting/resetpassword";
 import Block from "../setting/block";
@@ -89,6 +90,7 @@ const Navbar = () => {
     { icon: PeopleIcon, label: "Users", path: "/admin/users", id: "admin-users" },
     { icon: LabelIcon, label: "Tags", path: "/admin/tags", id: "admin-tags" },
     { icon: CustomFieldsIcon, label: "Custom fields", path: "/admin/custom-fields", id: "admin-custom-fields" },
+    { icon: MapIcon, label: "Map", path: "/map", id: "admin-map" },
   ], []);
 
   const isActive = (path) => {

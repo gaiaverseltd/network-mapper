@@ -21,6 +21,7 @@ import { AdminUsers } from './page/admin-users';
 import { AdminTags } from './page/admin-tags';
 import { AdminCustomFields } from './page/admin-custom-fields';
 import EditProfile from './page/edit-profile';
+import MapPage from './page/map';
 
 function App() {
    const [userdata, setuserdata] = useState(null);
@@ -74,6 +75,11 @@ function App() {
                      exact
                      path='/search'
                      element={<Layout Component={Search} />}
+                  />
+                  <Route
+                     exact
+                     path='/map'
+                     element={<Layout Component={MapPage} />}
                   />
                   <Route
                      exact

@@ -15,6 +15,7 @@ import { MdPeople as PeopleIcon } from "react-icons/md";
 import { MdLabel as LabelIcon } from "react-icons/md";
 import { MdEditAttributes as CustomFieldsIcon } from "react-icons/md";
 import { MdAdminPanelSettings as AdminIcon } from "react-icons/md";
+import { MdMap as MapIcon } from "react-icons/md";
 import { Popupitem } from "../../ui/popup";
 import { auth } from "../../service/Auth";
 import Resetpassword from "../setting/resetpassword";
@@ -48,6 +49,7 @@ function Mobilenavbar({ navbar, setpost }) {
     { id: "admin-users", icon: PeopleIcon, label: "Users", path: "/admin/users" },
     { id: "admin-tags", icon: LabelIcon, label: "Tags", path: "/admin/tags" },
     { id: "admin-custom-fields", icon: CustomFieldsIcon, label: "Custom fields", path: "/admin/custom-fields" },
+    { id: "admin-map", icon: MapIcon, label: "Map", path: "/map" },
   ];
 
   return (
