@@ -29,7 +29,8 @@
     "seed:users": "node scripts/seed-users.js",
     "seed:custom-fields": "node scripts/seed-custom-fields.js",
     "seed:country-state-tags": "node scripts/seed-country-state-tags.js",
-    "update:custom-fields-show-as-filter": "node scripts/update-custom-fields-show-as-filter.js"
+    "update:custom-fields-show-as-filter": "node scripts/update-custom-fields-show-as-filter.js",
+    "migrate:profiles:flatten": "node scripts/migrate-profiles-flatten.js"
   },
   "dependencies": {
     "@badrap/bar-of-progress": "^0.2.2",

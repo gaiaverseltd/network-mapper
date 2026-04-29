@@ -1,6 +1,7 @@
 import React from "react";
 import { useUserData } from "../../hooks/queries";
 import { useUserdatacontext } from "../../service/context/usercontext";
+import { resolveDisplayProfileImageUrl } from "../../lib/profile-image-url.js";
 import { useNavigate } from "react-router-dom";
 import Time from "../../service/utiles/time";
 import { Skeleton } from "../../ui/skeleton";
@@ -52,7 +53,10 @@ export default function Notify({ notification }) {
     >
       <img
         className="w-10 h-10 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-        src={likeby?.profileImageURL || defaultprofileimage}
+        src={resolveDisplayProfileImageUrl(
+          likeby?.profileImageURL,
+          defaultprofileimage,
+        )}
         alt={likeby?.name || "Profile"}
         onClick={(e) => {
           e.stopPropagation();

@@ -16,8 +16,8 @@ import {
   queryKeys,
 } from "../../hooks/queries";
 import { useQueryClient } from "@tanstack/react-query";
-import image from "/src/assets/defaultprofileimage.png";
 import { toast } from "react-toastify";
+import { PUBLIC_DEFAULT_PROFILE_IMAGE } from "../../lib/profile-image-url.js";
 
 const defaultContextValue = {
   postpopup: false,
@@ -46,7 +46,7 @@ export const UserDataProvider = ({ children, value, setvalue = () => {} }) => {
   const { data: GetAllusers = [] } = useAllProfiles({ enabled: !!userdata?.uid });
   const { data: userNotifications = [] } = useNotifications(userdata?.uid);
   const { data: unreadMessageCount = 0 } = useUnreadMessageCount(userdata?.uid);
-  const [defaultprofileimage, setdefaultprofileimage] = useState(image);
+  const [defaultprofileimage] = useState(PUBLIC_DEFAULT_PROFILE_IMAGE);
 
   const delete_post = useCallback(async (postid) => {
     if (userdata) {

@@ -2,7 +2,8 @@ import { Popupitem } from "../../ui/popup";
 import { MdDateRange as DateRangeIcon } from "react-icons/md";
 import PropTypes from "prop-types";
 import { useUserdatacontext } from "../../service/context/usercontext";
-import ImportedProfileSummary, { getImportedSummaryRows } from "../../component/imported-profile-summary";
+import { resolveDisplayProfileImageUrl } from "../../lib/profile-image-url.js";
+import ImportedProfileSummary from "../../component/imported-profile-summary";
 
 function Aboutprofile({ profiledata, close }) {
   const { defaultprofileimage } = useUserdatacontext();
@@ -16,7 +17,10 @@ function Aboutprofile({ profiledata, close }) {
         <div className="m-2 w-full text-center text-base capitalize flex justify-center flex-col space-y-4 my-12">
           <img
             className="rounded-full hover:scale-125 transition-all ease-in-out duration-300 m-auto w-20 h-20 "
-            src={profiledata.profileImageURL || defaultprofileimage}
+            src={resolveDisplayProfileImageUrl(
+              profiledata.profileImageURL,
+              defaultprofileimage,
+            )}
             onError={(e) => {
               e.target.src = defaultprofileimage;
             }}
@@ -25,9 +29,9 @@ function Aboutprofile({ profiledata, close }) {
           <h1 className="text-gray-300 text-sm  border-b-2 w-40 m-auto border-black pb-1 rounded-full hover:border-gray-400">
             @ {profiledata?.username}
           </h1>
-          {getImportedSummaryRows(profiledata).length > 0 && (
+          {profiledata && (
             <div className="text-left max-w-sm mx-auto mt-4 px-2">
-              <ImportedProfileSummary profile={profiledata} />
+              <ImportedProfileSummary profile={profiledata} showEmptyFields />
             </div>
           )}
         </div>

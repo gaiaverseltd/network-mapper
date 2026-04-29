@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useUserdatacontext } from "../../service/context/usercontext";
 import ProgressBar from "@badrap/bar-of-progress";
 import { MdLinkedCamera as LinkedCameraIcon } from "react-icons/md";
@@ -13,10 +14,30 @@ import {
   uploadProfileResourceFile,
   updateuserdata,
 } from "../../service/Auth/database";
-import { useClassificationTagOptions, useCustomFieldsForProfile } from "../../hooks/queries";
+import { queryKeys, useClassificationTagOptions, useCustomFieldsForProfile } from "../../hooks/queries";
 import { useQueries } from "@tanstack/react-query";
 import { auth } from "../../service/Auth";
-import ImportedProfileSummary, { getImportedSummaryRows } from "../../component/imported-profile-summary";
+import ImportedProfileSummary from "../../component/imported-profile-summary";
+import {
+  mergeDirectoryDefaults,
+  mergeEditFormStringListsIntoProfile,
+  mergeProfileCustomFieldsDefaults,
+  profileToEditFormStringLists,
+  PROFILE_EDIT_STRING_LIST_BINDINGS,
+} from "../../lib/profile-directory-fields.js";
+import { resolveDisplayProfileImageUrl } from "../../lib/profile-image-url.js";
+
+function buildEditProfileFormState(user, adminFlag, schemaFieldDefs = []) {
+  if (!user?.uid) return null;
+  const merged = mergeDirectoryDefaults({ ...user });
+  return {
+    ...merged,
+    ...profileToEditFormStringLists(user),
+    customFields: mergeProfileCustomFieldsDefaults(user.customFields, schemaFieldDefs),
+    profileResources: Array.isArray(user.profileResources) ? user.profileResources : [],
+    isAdmin: adminFlag ?? false,
+  };
+}
 
 // US states + DC for state select when country is United States (matches seed-country-state-tags)
 const US_STATE_OPTIONS = [
@@ -32,19 +53,15 @@ const US_STATE_OPTIONS = [
 
 export default function Editfuserdata({ toggle = () => {} }) {
   const progress = new ProgressBar();
+  const queryClient = useQueryClient();
   const { userdata, setuserdata, defaultprofileimage, isAdmin } = useUserdatacontext();
-  const [editformdata, seteditformdata] = useState({
-    ...userdata,
-    isAdmin: isAdmin ?? false,
-    customFields: userdata?.customFields ?? {},
-    profileResources: userdata?.profileResources ?? [],
-  });
+  const [editformdata, seteditformdata] = useState(() => buildEditProfileFormState(userdata, isAdmin, []));
   const [isusernameexist, setisusernameexist] = useState(false);
 
   const [profileimage, setprofileimage] = useState(null);
   const [uploadingResourceId, setUploadingResourceId] = useState(null);
-  const [profileimgurl, setprofileimgurl] = useState(
-    userdata?.profileImageURL || defaultprofileimage,
+  const [profileimgurl, setprofileimgurl] = useState(() =>
+    resolveDisplayProfileImageUrl(userdata?.profileImageURL, defaultprofileimage),
   );
   const { data: classificationOptions = [] } = useClassificationTagOptions();
   const { data: profileCustomFields = [] } = useCustomFieldsForProfile();
@@ -68,21 +85,68 @@ export default function Editfuserdata({ toggle = () => {} }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!userdata?.uid) return;
+    seteditformdata(buildEditProfileFormState(userdata, isAdmin, profileCustomFields));
+  }, [userdata, isAdmin, profileCustomFields]);
+
+  useEffect(() => {
+    setprofileimgurl((prev) => {
+      if (typeof prev === "string" && prev.startsWith("blob:")) return prev;
+      return resolveDisplayProfileImageUrl(
+        userdata?.profileImageURL,
+        defaultprofileimage,
+      );
+    });
+  }, [userdata?.profileImageURL, defaultprofileimage]);
+
+  /** Live directory + flat fields preview (matches save payload when valid). */
+  const directoryPreviewProfile = useMemo(() => {
+    if (!editformdata?.uid) return userdata;
+    const pack = mergeEditFormStringListsIntoProfile(editformdata);
+    return pack.ok ? pack.data : userdata;
+  }, [editformdata, userdata]);
+
+  const invalidateProfileCaches = (saved, previousUsername) => {
+    const uid = saved?.uid;
+    const nextName = (saved?.username ?? "").trim();
+    const prevName = (previousUsername ?? "").trim();
+    queryClient.invalidateQueries({ queryKey: queryKeys.allProfiles() });
+    if (uid) queryClient.invalidateQueries({ queryKey: queryKeys.user(uid) });
+    if (nextName) queryClient.invalidateQueries({ queryKey: queryKeys.userByUsername(nextName) });
+    if (prevName && prevName !== nextName) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.userByUsername(prevName) });
+    }
+  };
+
   const handelchange = (e) => {
     const { name, value } = e.target;
-    name === "bio"
-      ? seteditformdata((prevData) => ({ ...prevData, [name]: value }))
-      : seteditformdata((prevData) => ({ ...prevData, [name]: value.trim() }));
+    if (name === "bio") {
+      seteditformdata((prevData) => ({ ...prevData, [name]: value }));
+    } else if (name === "dateofbirth") {
+      seteditformdata((prevData) => ({ ...prevData, [name]: value }));
+    } else {
+      seteditformdata((prevData) => ({ ...prevData, [name]: value.trim() }));
+    }
   };
+
+  if (!editformdata?.uid) {
+    return (
+      <section className="sm:p-8 p-4 w-full text-left text-base text-text-secondary text-sm">
+        Loading profile…
+      </section>
+    );
+  }
 
   return (
     <section className="sm:p-8 p-4 w-full text-left text-base">
-      {getImportedSummaryRows(userdata).length > 0 && (
+      {(directoryPreviewProfile ?? userdata) && (
         <div className="mb-6 p-4 rounded-xl border border-border-default bg-bg-tertiary max-w-2xl">
           <p className="text-sm text-text-secondary mb-3">
-            Directory fields from your import are shown on your public profile below. Edit bio, photo, and editable fields in this form; full directory details stay in your profile view.
+            Live preview of directory fields from this form. If location JSON is invalid, the preview matches your last
+            saved profile until you fix it.
           </p>
-          <ImportedProfileSummary profile={userdata} />
+          <ImportedProfileSummary profile={directoryPreviewProfile ?? userdata} showEmptyFields />
         </div>
       )}
       <form
@@ -90,6 +154,12 @@ export default function Editfuserdata({ toggle = () => {} }) {
         onSubmit={async (e) => {
           e.preventDefault();
           progress.start();
+          const pack = mergeEditFormStringListsIntoProfile(editformdata);
+          if (!pack.ok) {
+            toast.error(pack.error);
+            progress.finish();
+            return;
+          }
           if (profileimage) {
             try {
               const data = await Getimagedownloadlink(
@@ -97,9 +167,10 @@ export default function Editfuserdata({ toggle = () => {} }) {
                 auth.currentUser.uid,
               );
               if (data && !isusernameexist) {
-                const updated = { ...editformdata, profileImageURL: data };
+                const updated = { ...pack.data, profileImageURL: data };
                 setuserdata(() => updated);
                 await updateuserdata(updated);
+                invalidateProfileCaches(updated, userdata?.username);
               }
               setprofileimgurl(data || profileimgurl);
               toast.success("Updated successfully");
@@ -108,9 +179,16 @@ export default function Editfuserdata({ toggle = () => {} }) {
               toast.error("Failed to update profile");
             }
           } else {
-            if (!isusernameexist && userdata !== editformdata) {
-              setuserdata(editformdata);
-              setprofileimgurl(editformdata.profileImageURL);
+            if (!isusernameexist) {
+              setuserdata(pack.data);
+              setprofileimgurl(
+                resolveDisplayProfileImageUrl(
+                  pack.data.profileImageURL,
+                  defaultprofileimage,
+                ),
+              );
+              await updateuserdata(pack.data);
+              invalidateProfileCaches(pack.data, userdata?.username);
               toast.success("Updated successfully");
             }
           }
@@ -199,11 +277,15 @@ export default function Editfuserdata({ toggle = () => {} }) {
             <label className="text-sm mx-3 text-text-primary">Date of Birth</label>
             <input
               type="date"
-              name="age"
-              value={editformdata?.dateofbirth}
+              name="dateofbirth"
+              value={
+                typeof editformdata?.dateofbirth === "string" &&
+                /^\d{4}-\d{2}-\d{2}$/.test(String(editformdata.dateofbirth).trim())
+                  ? editformdata.dateofbirth.trim()
+                  : ""
+              }
               className="px-5 placeholder:capitalize bg-black border-2 border-gray-300 w-full placeholder:text-neutral-500 sm:text-lg text-sm p-2 rounded-2xl"
               onChange={handelchange}
-              required
             />
           </div>
 
@@ -516,6 +598,264 @@ export default function Editfuserdata({ toggle = () => {} }) {
             </div>
           )}
         </div>
+        </div>
+
+        <div className="w-full mt-8 pt-6 border-t border-border-default space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold text-text-primary mb-1">Profile directory</h3>
+            <p className="text-sm text-text-secondary mb-4 max-w-3xl">
+              Fields stored directly on your profile document. Lists use one entry per line. Location is JSON with{" "}
+              <span className="font-mono text-xs">city</span>, <span className="font-mono text-xs">stateProvince</span>, and{" "}
+              <span className="font-mono text-xs">countries</span> (array of strings).
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">User ID</label>
+              <input
+                type="text"
+                disabled
+                value={editformdata.uid ?? ""}
+                className="px-5 bg-black/50 border-2 border-gray-600 text-gray-400 sm:text-lg text-sm p-2 rounded-2xl w-full cursor-not-allowed"
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">Email (sign-in)</label>
+              <input
+                type="email"
+                disabled
+                value={editformdata.email ?? ""}
+                className="px-5 bg-black/50 border-2 border-gray-600 text-gray-400 sm:text-lg text-sm p-2 rounded-2xl w-full cursor-not-allowed"
+              />
+            </div>
+            <div className="flex flex-col space-y-1 md:col-span-2">
+              <label className="flex items-center gap-3 px-3 py-2 cursor-pointer text-text-primary">
+                <input
+                  type="checkbox"
+                  checked={!!editformdata.privacy}
+                  onChange={(e) =>
+                    seteditformdata((prev) => ({ ...prev, privacy: e.target.checked }))
+                  }
+                  className="w-4 h-4 rounded border-gray-300"
+                />
+                <span className="text-sm">Private profile</span>
+              </label>
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">First name</label>
+              <input
+                type="text"
+                value={editformdata.firstName ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, firstName: e.target.value }))}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-lg text-sm p-2 rounded-2xl w-full"
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">Last name</label>
+              <input
+                type="text"
+                value={editformdata.lastName ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, lastName: e.target.value }))}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-lg text-sm p-2 rounded-2xl w-full"
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">Phone</label>
+              <input
+                type="tel"
+                value={editformdata.phone ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, phone: e.target.value }))}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-lg text-sm p-2 rounded-2xl w-full"
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">Notification count</label>
+              <input
+                type="number"
+                min={0}
+                disabled={!isAdmin}
+                value={String(editformdata.notification ?? 0)}
+                onChange={(e) =>
+                  seteditformdata((p) => ({
+                    ...p,
+                    notification: parseInt(e.target.value, 10) || 0,
+                  }))
+                }
+                className={`px-5 border-2 sm:text-lg text-sm p-2 rounded-2xl w-full ${
+                  isAdmin
+                    ? "bg-black border-gray-300 text-gray-200"
+                    : "bg-black/50 border-gray-600 text-gray-400 cursor-not-allowed"
+                }`}
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">City</label>
+              <input
+                type="text"
+                value={editformdata.city ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, city: e.target.value }))}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-lg text-sm p-2 rounded-2xl w-full"
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">State / province</label>
+              <input
+                type="text"
+                value={editformdata.state ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, state: e.target.value }))}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-lg text-sm p-2 rounded-2xl w-full"
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">Country</label>
+              <input
+                type="text"
+                value={editformdata.country ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, country: e.target.value }))}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-lg text-sm p-2 rounded-2xl w-full"
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">Country of origin</label>
+              <input
+                type="text"
+                value={editformdata.countryOfOrigin ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, countryOfOrigin: e.target.value }))}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-lg text-sm p-2 rounded-2xl w-full"
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">Classification (text)</label>
+              <input
+                type="text"
+                value={editformdata.classification ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, classification: e.target.value }))}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-lg text-sm p-2 rounded-2xl w-full"
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">Gender</label>
+              <input
+                type="text"
+                value={editformdata.gender ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, gender: e.target.value }))}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-lg text-sm p-2 rounded-2xl w-full"
+              />
+            </div>
+            <div className="flex flex-col space-y-1 md:col-span-2">
+              <label className="text-sm mx-3 text-text-primary">Organization</label>
+              <input
+                type="text"
+                value={editformdata.organization ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, organization: e.target.value }))}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-lg text-sm p-2 rounded-2xl w-full"
+              />
+            </div>
+            <div className="flex flex-col space-y-1 md:col-span-2">
+              <label className="text-sm mx-3 text-text-primary">Profile URL (primary)</label>
+              <input
+                type="text"
+                placeholder="https://"
+                value={editformdata.profileUrl ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, profileUrl: e.target.value }))}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-lg text-sm p-2 rounded-2xl w-full"
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">Import source</label>
+              <input
+                type="text"
+                disabled={!isAdmin}
+                value={editformdata.importSource ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, importSource: e.target.value }))}
+                className={`px-5 border-2 sm:text-lg text-sm p-2 rounded-2xl w-full ${
+                  isAdmin
+                    ? "bg-black border-gray-300 text-gray-200"
+                    : "bg-black/50 border-gray-600 text-gray-400 cursor-not-allowed"
+                }`}
+              />
+            </div>
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">Source member ID</label>
+              <input
+                type="text"
+                disabled={!isAdmin}
+                value={editformdata.sourceMemberId ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, sourceMemberId: e.target.value }))}
+                className={`px-5 border-2 sm:text-lg text-sm p-2 rounded-2xl w-full ${
+                  isAdmin
+                    ? "bg-black border-gray-300 text-gray-200"
+                    : "bg-black/50 border-gray-600 text-gray-400 cursor-not-allowed"
+                }`}
+              />
+            </div>
+            <div className="flex flex-col space-y-1 md:col-span-2">
+              <label className="flex items-center gap-3 px-3 py-2 cursor-pointer text-text-primary">
+                <input
+                  type="checkbox"
+                  checked={!!editformdata.shareContactInfo}
+                  onChange={(e) =>
+                    seteditformdata((p) => ({ ...p, shareContactInfo: e.target.checked }))
+                  }
+                  className="w-4 h-4 rounded border-gray-300"
+                />
+                <span className="text-sm">Share contact info</span>
+              </label>
+            </div>
+            <div className="flex flex-col space-y-1 md:col-span-2">
+              <label className="flex items-center gap-3 px-3 py-2 text-text-primary">
+                <input
+                  type="checkbox"
+                  disabled={!isAdmin}
+                  checked={!!editformdata.isDuplicate}
+                  onChange={(e) =>
+                    seteditformdata((p) => ({ ...p, isDuplicate: e.target.checked }))
+                  }
+                  className="w-4 h-4 rounded border-gray-300 disabled:opacity-50"
+                />
+                <span className="text-sm">Marked duplicate (import) — admin only</span>
+              </label>
+            </div>
+            {isAdmin && (
+              <div className="flex flex-col space-y-1 md:col-span-2">
+                <label className="flex items-center gap-3 px-3 py-2 cursor-pointer text-text-primary">
+                  <input
+                    type="checkbox"
+                    checked={!!editformdata.restricted}
+                    onChange={(e) =>
+                      seteditformdata((p) => ({ ...p, restricted: e.target.checked }))
+                    }
+                    className="w-4 h-4 rounded border-gray-300"
+                  />
+                  <span className="text-sm">Restricted account</span>
+                </label>
+              </div>
+            )}
+          </div>
+          <div className="space-y-4">
+            {PROFILE_EDIT_STRING_LIST_BINDINGS.map(({ formKey, label }) => (
+              <div key={formKey} className="flex flex-col space-y-1">
+                <label className="text-sm mx-3 text-text-primary">{label}</label>
+                <textarea
+                  value={editformdata[formKey] ?? ""}
+                  onChange={(e) => seteditformdata((p) => ({ ...p, [formKey]: e.target.value }))}
+                  rows={4}
+                  spellCheck={false}
+                  className="px-5 bg-black border-2 border-gray-300 text-gray-200 sm:text-sm text-xs p-2 rounded-2xl w-full min-h-[88px] font-mono"
+                />
+              </div>
+            ))}
+            <div className="flex flex-col space-y-1">
+              <label className="text-sm mx-3 text-text-primary">location (JSON)</label>
+              <textarea
+                value={editformdata.locationJson ?? ""}
+                onChange={(e) => seteditformdata((p) => ({ ...p, locationJson: e.target.value }))}
+                rows={6}
+                spellCheck={false}
+                className="px-5 bg-black border-2 border-gray-300 text-gray-200 text-xs p-2 rounded-2xl w-full min-h-[120px] font-mono"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Resources: files with name and description */}

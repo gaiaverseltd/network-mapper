@@ -9,7 +9,7 @@ export const Layout = ({ Component }) => {
       </div>
       {/* Main content - 75% split 70/30, resizable */}
       <main className="flex-1 flex min-h-screen min-w-0">
-        <div className="flex-[7] min-w-0 flex justify-center overflow-auto">
+        <div className="flex-[7] min-w-0 min-h-0 flex justify-center overflow-auto">
           <div className="w-full pt-8 md:pt-0 mt-10 px-4">
             <Component />
           </div>

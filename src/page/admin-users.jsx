@@ -16,7 +16,19 @@ import { adminCreateUser } from "../service/Auth/index";
 import { useCustomFieldsForProfile, useClassificationTagOptions } from "../hooks/queries";
 import { useQueries } from "@tanstack/react-query";
 import UserCard from "../component/user-card";
-import ImportedProfileSummary, { getImportedSummaryRows } from "../component/imported-profile-summary";
+import ImportedProfileSummary, {
+  DIRECTORY_VALUE_EMPTY,
+  getImportedSummaryRows,
+  getProfileSearchHaystack,
+  profileHasDirectorySummaryContext,
+} from "../component/imported-profile-summary";
+import {
+  mergeDirectoryDefaults,
+  mergeProfileCustomFieldsDefaults,
+  multilineToStringList,
+  PROFILE_EDIT_STRING_LIST_BINDINGS,
+  stringListToMultiline,
+} from "../lib/profile-directory-fields.js";
 import { Popupitem } from "../ui/popup";
 import { toast } from "react-toastify";
 import { MdPeople as PeopleIcon } from "react-icons/md";
@@ -64,30 +76,45 @@ function emptyAdminEditForm() {
     adminNotes: [],
     memberDataJson: "{}",
     profileResourcesJson: "[]",
+    firstName: "",
+    lastName: "",
+    phone: "",
+    city: "",
+    state: "",
+    country: "",
+    countryOfOrigin: "",
+    classification: "",
+    gender: "",
+    organization: "",
+    profileUrl: "",
+    notification: "0",
+    shareContactInfo: false,
+    isDuplicate: false,
+    titleText: "",
+    fieldsOfStudyText: "",
+    areasOfInterestText: "",
+    topicsOfInterestText: "",
+    networkActivitiesText: "",
+    languagesSpokenText: "",
+    workCountriesText: "",
+    profileWebsitesText: "",
+    json_location: JSON.stringify({ city: "", countries: [], stateProvince: "" }, null, 2),
+    json_follower: "[]",
+    json_following: "[]",
+    json_post: "[]",
+    json_saved: "[]",
+    json_report: "[]",
+    json_blockusers: "[]",
+    json_profileResources: "[]",
+    json_customFields: "{}",
   };
 }
 
-/** Search text for admin list: profile + directory/import fields. */
+/** Search text for admin list: profile + directory/import fields + uid. */
 function adminProfileSearchHaystack(p) {
-  const parts = [
-    p?.name,
-    p?.username,
-    p?.email,
-    p?.bio,
-    p?.importSource,
-    p?.sourceMemberId != null && p?.sourceMemberId !== "" ? String(p.sourceMemberId) : "",
-  ];
-  getImportedSummaryRows(p).forEach((r) => {
-    if (r.value != null && String(r.value).trim() !== "") parts.push(String(r.value));
-  });
-  if (p?.memberData && typeof p.memberData === "object") {
-    try {
-      parts.push(JSON.stringify(p.memberData));
-    } catch {
-      /* ignore */
-    }
-  }
-  return parts.filter(Boolean).join(" ").toLowerCase();
+  const base = getProfileSearchHaystack(p);
+  const extra = [p?.uid, p?.id, p?.notification != null ? String(p.notification) : ""].filter(Boolean).join(" ");
+  return `${base} ${extra}`.trim().toLowerCase();
 }
 
 const DIRECTORY_EXPORT_HEADERS = [
@@ -106,28 +133,45 @@ const DIRECTORY_EXPORT_HEADERS = [
   "Countries of work",
   "Network activities",
   "Share contact info",
+  "First name",
+  "Last name",
+  "Phone",
+  "Profile URL",
+  "Country (root)",
+  "State (root)",
+  "City (root)",
+  "Notification count",
 ];
 
 function directoryExportCellValues(profile) {
-  const m = Object.fromEntries(
-    getImportedSummaryRows(profile).map((r) => [r.key, String(r.value ?? "")])
-  );
+  const rows = getImportedSummaryRows(profile, { showEmptyFields: true });
+  const m = Object.fromEntries(rows.map((r) => [r.key, String(r.value ?? "")]));
+  const p = mergeDirectoryDefaults(profile);
+  const cell = (v) => (v == null || v === DIRECTORY_VALUE_EMPTY ? "" : String(v));
   return [
     profile.importSource ?? "",
     profile.sourceMemberId != null && profile.sourceMemberId !== "" ? String(profile.sourceMemberId) : "",
-    m.title ?? "",
-    m.organization ?? "",
-    m.location ?? "",
-    m.classification ?? "",
-    m.gender ?? "",
-    m.languages ?? "",
-    m.fields ?? "",
-    m.topics ?? "",
-    m.interests ?? "",
-    m.origin ?? "",
-    m.workCountries ?? "",
-    m.network ?? "",
-    m.shareContact ?? "",
+    cell(m.title),
+    cell(m.organization),
+    cell(m.location),
+    cell(m.classification),
+    cell(m.gender),
+    cell(m.languages),
+    cell(m.fields),
+    cell(m.topics),
+    cell(m.interests),
+    cell(m.origin),
+    cell(m.workCountries),
+    cell(m.network),
+    cell(m.shareContact),
+    p.firstName ?? "",
+    p.lastName ?? "",
+    p.phone ?? "",
+    p.profileUrl ?? "",
+    p.country ?? "",
+    p.state ?? "",
+    p.city ?? "",
+    String(profile.notification ?? ""),
   ];
 }
 
@@ -163,6 +207,31 @@ function formatDateTime(value) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+/** Admin read-only: show any Firestore field value without crashing on Timestamp / circular refs. */
+function serializeProfileFieldValue(val, maxLen = 4000) {
+  if (val === undefined || val === null) return "\u2014";
+  if (typeof val === "object" && val !== null && typeof val.toDate === "function") {
+    try {
+      return val.toDate().toISOString();
+    } catch {
+      return String(val);
+    }
+  }
+  if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
+    return String(val);
+  }
+  if (typeof val === "object") {
+    try {
+      const s = JSON.stringify(val, null, 2);
+      if (s.length > maxLen) return `${s.slice(0, maxLen)}\n\u2026 (${s.length} characters total)`;
+      return s;
+    } catch {
+      return String(val);
+    }
+  }
+  return String(val);
 }
 
 export const AdminUsers = () => {
@@ -269,7 +338,15 @@ export const AdminUsers = () => {
     if (filter === FILTER_HAS_POSTS) list = list.filter((p) => (p.post?.length ?? 0) > 0);
     if (filter === FILTER_NO_POSTS) list = list.filter((p) => (p.post?.length ?? 0) === 0);
     if (filter === FILTER_DIRECTORY) {
-      list = list.filter((p) => !!(p.importSource || (p.memberData && Object.keys(p.memberData).length > 0)));
+      list = list.filter(
+        (p) =>
+          !!(
+            p.importSource ||
+            p.sourceMemberId ||
+            (p.memberData && typeof p.memberData === "object" && Object.keys(p.memberData).length > 0) ||
+            profileHasDirectorySummaryContext(p)
+          )
+      );
     }
     const sorted = [...list];
     if (sortBy === SORT_NAME) {
@@ -285,12 +362,20 @@ export const AdminUsers = () => {
     setPendingAvatarFile(null);
     setNewCustomKey("");
     setNewCustomValue("");
+    const m = mergeDirectoryDefaults(profile);
+    const safeJson = (v, fb) => {
+      try {
+        return JSON.stringify(v ?? fb, null, 2);
+      } catch {
+        return JSON.stringify(fb, null, 2);
+      }
+    };
     setEditForm({
       ...emptyAdminEditForm(),
       name: (profile.name ?? "").trim(),
       username: (profile.username ?? "").trim(),
       bio: (profile.bio ?? "").trim(),
-      customFields: { ...(profile.customFields ?? {}) },
+      customFields: mergeProfileCustomFieldsDefaults(profile.customFields ?? {}, profileCustomFields),
       email: (profile.email ?? "").trim(),
       dateofbirth: profile.dateofbirth ?? "",
       profileImageURL: profile.profileImageURL ?? "",
@@ -322,8 +407,47 @@ export const AdminUsers = () => {
           return "[]";
         }
       })(),
+      firstName: m.firstName ?? "",
+      lastName: m.lastName ?? "",
+      phone: m.phone ?? "",
+      city: m.city ?? "",
+      state: m.state ?? "",
+      country: m.country ?? "",
+      countryOfOrigin: m.countryOfOrigin ?? "",
+      classification: m.classification ?? "",
+      gender: m.gender ?? "",
+      organization: m.organization ?? "",
+      profileUrl: m.profileUrl ?? "",
+      notification: String(profile.notification ?? 0),
+      shareContactInfo: !!m.shareContactInfo,
+      isDuplicate: !!m.isDuplicate,
+      titleText: stringListToMultiline(m.title),
+      fieldsOfStudyText: stringListToMultiline(m.fieldsOfStudy),
+      areasOfInterestText: stringListToMultiline(m.areasOfInterest),
+      topicsOfInterestText: stringListToMultiline(m.topicsOfInterest),
+      networkActivitiesText: stringListToMultiline(m.networkActivities),
+      languagesSpokenText: stringListToMultiline(m.languagesSpoken),
+      workCountriesText: stringListToMultiline(m.workCountries),
+      profileWebsitesText: stringListToMultiline(m.profileWebsites),
+      json_location: safeJson(m.location, { city: "", countries: [], stateProvince: "" }),
+      json_follower: safeJson(profile.follower, []),
+      json_following: safeJson(profile.following, []),
+      json_post: safeJson(profile.post, []),
+      json_saved: safeJson(profile.saved, []),
+      json_report: safeJson(profile.report, []),
+      json_blockusers: safeJson(profile.blockusers ?? profile.block, []),
+      json_profileResources: safeJson(profile.profileResources, []),
+      json_customFields: safeJson(profile.customFields, {}),
     });
-  }, []);
+  }, [profileCustomFields]);
+
+  useEffect(() => {
+    if (!selectedProfile) return;
+    setEditForm((f) => ({
+      ...f,
+      customFields: mergeProfileCustomFieldsDefaults(f.customFields ?? {}, profileCustomFields),
+    }));
+  }, [selectedProfile, profileCustomFields]);
 
   const closeEditModal = useCallback(() => {
     if (!editSaving) {
@@ -397,6 +521,16 @@ export const AdminUsers = () => {
     setNewAdminNote("");
   }, [newAdminNote, selectedProfile, userdata?.uid, userdata?.name, userdata?.username]);
 
+  const mergedProfileForAdmin = useMemo(
+    () => (selectedProfile ? mergeDirectoryDefaults({ ...selectedProfile }) : null),
+    [selectedProfile]
+  );
+
+  const adminFullDocumentKeys = useMemo(() => {
+    if (!selectedProfile || !mergedProfileForAdmin) return [];
+    return [...new Set([...Object.keys(selectedProfile), ...Object.keys(mergedProfileForAdmin)])].sort();
+  }, [selectedProfile, mergedProfileForAdmin]);
+
   const previewProfileForSummary = useMemo(() => {
     if (!selectedProfile) return null;
     let memberData = selectedProfile.memberData;
@@ -409,14 +543,49 @@ export const AdminUsers = () => {
     } catch {
       /* keep saved memberData */
     }
+    let location = selectedProfile.location;
+    try {
+      const locRaw = (editForm.json_location ?? "").trim();
+      if (locRaw) {
+        const parsed = JSON.parse(locRaw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) location = parsed;
+      }
+    } catch {
+      /* keep */
+    }
     return {
       ...selectedProfile,
+      name: editForm.name,
+      username: editForm.username,
+      bio: editForm.bio,
+      firstName: editForm.firstName,
+      lastName: editForm.lastName,
+      phone: editForm.phone,
+      city: editForm.city,
+      state: editForm.state,
+      country: editForm.country,
+      countryOfOrigin: editForm.countryOfOrigin,
+      classification: editForm.classification,
+      gender: editForm.gender,
+      organization: editForm.organization,
+      profileUrl: editForm.profileUrl,
+      shareContactInfo: !!editForm.shareContactInfo,
+      isDuplicate: !!editForm.isDuplicate,
+      title: multilineToStringList(editForm.titleText),
+      fieldsOfStudy: multilineToStringList(editForm.fieldsOfStudyText),
+      areasOfInterest: multilineToStringList(editForm.areasOfInterestText),
+      topicsOfInterest: multilineToStringList(editForm.topicsOfInterestText),
+      networkActivities: multilineToStringList(editForm.networkActivitiesText),
+      languagesSpoken: multilineToStringList(editForm.languagesSpokenText),
+      workCountries: multilineToStringList(editForm.workCountriesText),
+      profileWebsites: multilineToStringList(editForm.profileWebsitesText),
+      location,
       customFields: editForm.customFields ?? {},
       memberData,
       importSource: editForm.importSource || null,
       sourceMemberId: editForm.sourceMemberId || null,
     };
-  }, [selectedProfile, editForm.memberDataJson, editForm.customFields, editForm.importSource, editForm.sourceMemberId]);
+  }, [selectedProfile, editForm]);
 
   const handleSaveProfile = useCallback(
     async (e) => {
@@ -449,6 +618,51 @@ export const AdminUsers = () => {
         return;
       }
 
+      const parseJsonField = (raw, fallback, label, validator) => {
+        try {
+          const t = (raw ?? "").trim();
+          if (!t) return fallback;
+          const v = JSON.parse(t);
+          if (validator && !validator(v)) {
+            toast.error(`${label}: invalid shape.`);
+            return null;
+          }
+          return v;
+        } catch {
+          toast.error(`${label}: invalid JSON.`);
+          return null;
+        }
+      };
+
+      const locationParsed = parseJsonField(
+        editForm.json_location,
+        { city: "", countries: [], stateProvince: "" },
+        "Location",
+        (v) => typeof v === "object" && v != null && !Array.isArray(v)
+      );
+      if (locationParsed === null) return;
+      const followerParsed = parseJsonField(editForm.json_follower, [], "Followers", Array.isArray);
+      if (followerParsed === null) return;
+      const followingParsed = parseJsonField(editForm.json_following, [], "Following", Array.isArray);
+      if (followingParsed === null) return;
+      const postParsed = parseJsonField(editForm.json_post, [], "Posts", Array.isArray);
+      if (postParsed === null) return;
+      const savedParsed = parseJsonField(editForm.json_saved, [], "Saved", Array.isArray);
+      if (savedParsed === null) return;
+      const reportParsed = parseJsonField(editForm.json_report, [], "Report", Array.isArray);
+      if (reportParsed === null) return;
+      const blockusersParsed = parseJsonField(editForm.json_blockusers, [], "Block list", Array.isArray);
+      if (blockusersParsed === null) return;
+      let customFieldsFromJson = {};
+      const cfParsed = parseJsonField(
+        editForm.json_customFields,
+        {},
+        "Custom fields (JSON object)",
+        (v) => typeof v === "object" && v != null && !Array.isArray(v)
+      );
+      if (cfParsed === null) return;
+      customFieldsFromJson = cfParsed;
+
       const targetUid = selectedProfile.uid ?? selectedProfile.id;
       const uname = editForm.username.trim().toLowerCase().replace(/\s+/g, "_");
       const prevU = (selectedProfile.username ?? "").trim().toLowerCase();
@@ -478,7 +692,14 @@ export const AdminUsers = () => {
         Object.entries(editForm.customFields ?? {}).forEach(([k, v]) => {
           if (v != null && String(v).trim() !== "") customFieldsCleaned[k] = String(v).trim();
         });
+        const mergedCustomFields = { ...customFieldsFromJson, ...customFieldsCleaned };
+        Object.keys(mergedCustomFields).forEach((k) => {
+          const v = mergedCustomFields[k];
+          if (v == null) delete mergedCustomFields[k];
+          else if (typeof v === "string" && v.trim() === "") delete mergedCustomFields[k];
+        });
 
+        const notificationNum = parseInt(String(editForm.notification ?? "0"), 10);
         const updated = {
           ...selectedProfile,
           uid: targetUid,
@@ -495,9 +716,39 @@ export const AdminUsers = () => {
           sourceMemberId: (editForm.sourceMemberId ?? "").trim() || null,
           isAdmin: !!editForm.isAdmin,
           adminNotes: Array.isArray(editForm.adminNotes) ? editForm.adminNotes : [],
-          customFields: customFieldsCleaned,
+          customFields: mergedCustomFields,
           memberData: memberDataParsed,
           profileResources: profileResourcesParsed,
+          firstName: (editForm.firstName ?? "").trim(),
+          lastName: (editForm.lastName ?? "").trim(),
+          phone: (editForm.phone ?? "").trim(),
+          city: (editForm.city ?? "").trim(),
+          state: (editForm.state ?? "").trim(),
+          country: (editForm.country ?? "").trim(),
+          countryOfOrigin: (editForm.countryOfOrigin ?? "").trim(),
+          classification: (editForm.classification ?? "").trim(),
+          gender: (editForm.gender ?? "").trim(),
+          organization: (editForm.organization ?? "").trim(),
+          profileUrl: (editForm.profileUrl ?? "").trim(),
+          notification: Number.isFinite(notificationNum) ? notificationNum : 0,
+          shareContactInfo: !!editForm.shareContactInfo,
+          isDuplicate: !!editForm.isDuplicate,
+          title: multilineToStringList(editForm.titleText),
+          fieldsOfStudy: multilineToStringList(editForm.fieldsOfStudyText),
+          areasOfInterest: multilineToStringList(editForm.areasOfInterestText),
+          topicsOfInterest: multilineToStringList(editForm.topicsOfInterestText),
+          networkActivities: multilineToStringList(editForm.networkActivitiesText),
+          languagesSpoken: multilineToStringList(editForm.languagesSpokenText),
+          workCountries: multilineToStringList(editForm.workCountriesText),
+          profileWebsites: multilineToStringList(editForm.profileWebsitesText),
+          location: locationParsed,
+          follower: followerParsed,
+          following: followingParsed,
+          post: postParsed,
+          saved: savedParsed,
+          report: reportParsed,
+          blockusers: blockusersParsed,
+          block: blockusersParsed,
         };
         await updateuserdata(updated);
         setUsers((prev) =>
@@ -522,51 +773,20 @@ export const AdminUsers = () => {
   const labelClass = "block text-sm font-medium text-text-secondary mb-1.5";
 
   const allEditFields = useMemo(() => {
-    const basic = [
-      { kind: "basic", key: "name", label: "Display name", type: "text" },
-      { kind: "basic", key: "username", label: "Username", type: "text" },
-      { kind: "basic", key: "bio", label: "Bio", type: "note" },
-    ];
     const defined = new Set(profileCustomFields.map((f) => f.key));
     const extra = Object.keys(editForm.customFields ?? {})
       .filter((k) => !defined.has(k))
       .sort()
       .map((key) => ({ kind: "extraCustom", key }));
     const custom = profileCustomFields.map((f) => ({ kind: "custom", ...f }));
-    return [...basic, ...custom, ...extra];
+    return [...custom, ...extra];
   }, [profileCustomFields, editForm.customFields]);
 
-  const mid = Math.ceil(allEditFields.length / 2);
+  const mid = Math.ceil(allEditFields.length / 2) || 1;
   const leftFields = allEditFields.slice(0, mid);
   const rightFields = allEditFields.slice(mid);
 
   const renderField = (item) => {
-    if (item.kind === "basic") {
-      if (item.key === "bio") {
-        return (
-          <div key={item.key}>
-            <label className={labelClass}>{item.label}</label>
-            <textarea
-              value={editForm.bio}
-              onChange={(e) => setEditForm((f) => ({ ...f, bio: e.target.value }))}
-              rows={3}
-              className={`${inputClass} resize-y min-h-[80px]`}
-            />
-          </div>
-        );
-      }
-      return (
-        <div key={item.key}>
-          <label className={labelClass}>{item.label}</label>
-          <input
-            type="text"
-            value={editForm[item.key]}
-            onChange={(e) => setEditForm((f) => ({ ...f, [item.key]: e.target.value }))}
-            className={inputClass}
-          />
-        </div>
-      );
-    }
     if (item.kind === "extraCustom") {
       const extraValue = editForm.customFields?.[item.key] ?? "";
       const extraAsTextarea = shouldUseTextareaForString(extraValue);
@@ -1071,10 +1291,9 @@ export const AdminUsers = () => {
       )}
 
       {isEditPage && selectedProfile && (
-        <div className="w-full py-4 px-4">
-          <div className="w-full rounded-xl border border-border-default bg-bg-tertiary overflow-hidden">
-            <div className="w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 z-10 bg-bg-tertiary border-b border-border-default px-6 py-4">
+        <div className="w-full py-4 px-4 min-h-0">
+          <div className="w-full rounded-xl border border-border-default bg-bg-tertiary overflow-visible">
+            <div className="sticky top-0 z-10 bg-bg-tertiary border-b border-border-default px-6 py-4 shadow-sm">
               <button
                 type="button"
                 onClick={closeEditModal}
@@ -1091,6 +1310,16 @@ export const AdminUsers = () => {
                 Profile email updates the Firestore document only. Changing login email may require Firebase Auth
                 console or a backend function.
               </p>
+              <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-text-secondary">
+                <div>
+                  <dt className="text-text-tertiary uppercase tracking-wide">UID</dt>
+                  <dd className="font-mono text-text-primary break-all">{selectedProfile.uid ?? selectedProfile.id}</dd>
+                </div>
+                <div>
+                  <dt className="text-text-tertiary uppercase tracking-wide">Joined</dt>
+                  <dd>{formatDateTime(selectedProfile.createdAt)}</dd>
+                </div>
+              </dl>
             </div>
 
             <form onSubmit={handleSaveProfile}>
@@ -1113,7 +1342,12 @@ export const AdminUsers = () => {
                     <label className={labelClass}>Date of birth</label>
                     <input
                       type="date"
-                      value={editForm.dateofbirth}
+                      value={
+                        typeof editForm.dateofbirth === "string" &&
+                        /^\d{4}-\d{2}-\d{2}$/.test(editForm.dateofbirth.trim())
+                          ? editForm.dateofbirth.trim()
+                          : ""
+                      }
                       onChange={(e) => setEditForm((f) => ({ ...f, dateofbirth: e.target.value }))}
                       className={inputClass}
                     />
@@ -1228,43 +1462,279 @@ export const AdminUsers = () => {
                 </div>
               </div>
 
-              {/* {previewProfileForSummary && getImportedSummaryRows(previewProfileForSummary).length > 0 && (
+              <div className="px-6 py-4 border-b border-border-default space-y-4 bg-bg-secondary/15">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+                  Root profile fields (Firestore document)
+                </h3>
+                <p className="text-xs text-text-tertiary">
+                  Flat directory fields and arrays. List fields use one value per line. JSON blocks must parse before Save.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>UID (read-only)</label>
+                    <input
+                      type="text"
+                      disabled
+                      value={selectedProfile.uid ?? selectedProfile.id ?? ""}
+                      className={`${inputClass} opacity-70 cursor-not-allowed`}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Created at (read-only)</label>
+                    <input
+                      type="text"
+                      disabled
+                      value={formatDateTime(selectedProfile.createdAt)}
+                      className={`${inputClass} opacity-70 cursor-not-allowed`}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Display name</label>
+                    <input
+                      type="text"
+                      value={editForm.name ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Username</label>
+                    <input
+                      type="text"
+                      value={editForm.username ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, username: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className={labelClass}>Bio</label>
+                    <textarea
+                      value={editForm.bio ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, bio: e.target.value }))}
+                      rows={3}
+                      className={`${inputClass} resize-y min-h-[80px]`}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>First name</label>
+                    <input
+                      type="text"
+                      value={editForm.firstName ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, firstName: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Last name</label>
+                    <input
+                      type="text"
+                      value={editForm.lastName ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, lastName: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Phone</label>
+                    <input
+                      type="text"
+                      value={editForm.phone ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Notification count</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editForm.notification ?? "0"}
+                      onChange={(e) => setEditForm((f) => ({ ...f, notification: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>City</label>
+                    <input
+                      type="text"
+                      value={editForm.city ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>State / province</label>
+                    <input
+                      type="text"
+                      value={editForm.state ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, state: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Country (root)</label>
+                    <input
+                      type="text"
+                      value={editForm.country ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, country: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Country of origin</label>
+                    <input
+                      type="text"
+                      value={editForm.countryOfOrigin ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, countryOfOrigin: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Classification (text)</label>
+                    <input
+                      type="text"
+                      value={editForm.classification ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, classification: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Gender</label>
+                    <input
+                      type="text"
+                      value={editForm.gender ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, gender: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className={labelClass}>Organization</label>
+                    <input
+                      type="text"
+                      value={editForm.organization ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, organization: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className={labelClass}>Profile URL (primary)</label>
+                    <input
+                      type="text"
+                      placeholder="https://"
+                      value={editForm.profileUrl ?? ""}
+                      onChange={(e) => setEditForm((f) => ({ ...f, profileUrl: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-6">
+                  <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.shareContactInfo}
+                      onChange={(e) => setEditForm((f) => ({ ...f, shareContactInfo: e.target.checked }))}
+                      className="rounded border-border-default"
+                    />
+                    Share contact info
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.isDuplicate}
+                      onChange={(e) => setEditForm((f) => ({ ...f, isDuplicate: e.target.checked }))}
+                      className="rounded border-border-default"
+                    />
+                    Marked duplicate (import)
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {PROFILE_EDIT_STRING_LIST_BINDINGS.map(({ formKey, label }) => (
+                    <div key={formKey} className="md:col-span-2">
+                      <label className={labelClass}>{label}</label>
+                      <textarea
+                        value={editForm[formKey] ?? ""}
+                        onChange={(e) => setEditForm((f) => ({ ...f, [formKey]: e.target.value }))}
+                        rows={3}
+                        spellCheck={false}
+                        className={`${inputClass} font-mono text-xs resize-y min-h-[72px]`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* {previewProfileForSummary && (
                 <div className="px-6 py-4 border-b border-border-default bg-bg-secondary/30">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-text-tertiary mb-3">
-                    Directory preview (from member JSON + custom fields)
+                    Directory preview (merged form + legacy member JSON)
                   </h3>
-                  <ImportedProfileSummary profile={previewProfileForSummary} />
+                  <ImportedProfileSummary profile={previewProfileForSummary} showEmptyFields />
                 </div>
               )} */}
 
+              {/* <details className="px-6 py-4 border-b border-border-default bg-bg-secondary/10" open>
+                <summary className="text-xs font-semibold uppercase tracking-wide text-text-tertiary cursor-pointer">
+                  Complete Firestore document (every key & value)
+                </summary>
+                <p className="text-xs text-text-tertiary mt-2 mb-3">
+                  Values after directory defaults are applied where missing. Scroll this panel for long documents.
+                </p>
+                <div className="max-h-[min(70vh,32rem)] overflow-y-auto rounded-lg border border-border-default bg-bg-default/40 pr-1">
+                  <dl className="divide-y divide-border-default/60">
+                    {adminFullDocumentKeys.map((key) => (
+                      <div key={key} className="px-3 py-2.5 grid grid-cols-1 sm:grid-cols-[minmax(0,11rem)_1fr] gap-x-4 gap-y-1">
+                        <dt className="font-mono text-[11px] text-accent-500 shrink-0 break-all">{key}</dt>
+                        <dd className="text-[11px] text-text-primary whitespace-pre-wrap break-words font-mono min-w-0">
+                          {serializeProfileFieldValue(
+                            selectedProfile[key] !== undefined ? selectedProfile[key] : mergedProfileForAdmin?.[key]
+                          )}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              </details> */}
+
+              {/* <details className="px-6 py-3 border-b border-border-default">
+                <summary className="text-xs font-semibold uppercase tracking-wide text-text-tertiary cursor-pointer">
+                  Field names only (compact)
+                </summary>
+                <ul className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-3 gap-y-1 font-mono text-[11px] text-text-secondary max-h-48 overflow-y-auto pr-1">
+                  {adminFullDocumentKeys.map((k) => (
+                    <li key={k} className="truncate" title={k}>
+                      {k}
+                    </li>
+                  ))}
+                </ul>
+              </details> */}
+
               {/* <div className="px-6 py-4 border-b border-border-default space-y-2">
-                <label className={labelClass}>Member data (JSON object)</label>
+                <label className={labelClass}>Member data (JSON object, legacy)</label>
                 <textarea
                   value={editForm.memberDataJson}
                   onChange={(e) => setEditForm((f) => ({ ...f, memberDataJson: e.target.value }))}
-                  rows={14}
+                  rows={10}
                   spellCheck={false}
-                  className={`${inputClass} font-mono text-xs resize-y min-h-[200px]`}
+                  className={`${inputClass} font-mono text-xs resize-y min-h-[160px]`}
                 />
-              </div> */}
+              </div>
 
-              {/* <div className="px-6 py-4 border-b border-border-default space-y-2">
+              <div className="px-6 py-4 border-b border-border-default space-y-2">
                 <label className={labelClass}>Profile resources (JSON array)</label>
                 <p className="text-xs text-text-tertiary">
-                  Same shape as on the user edit profile screen: array of objects with id, name, description, url, etc.
+                  Array of objects (e.g. id, name, description, fileUrl) as stored on the profile.
                 </p>
                 <textarea
                   value={editForm.profileResourcesJson}
                   onChange={(e) => setEditForm((f) => ({ ...f, profileResourcesJson: e.target.value }))}
-                  rows={10}
+                  rows={8}
                   spellCheck={false}
-                  className={`${inputClass} font-mono text-xs resize-y min-h-[140px]`}
+                  className={`${inputClass} font-mono text-xs resize-y min-h-[120px]`}
                 />
               </div> */}
 
               <div className="p-6">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-text-tertiary mb-4">
-                  Name, bio & custom fields
+                  Configurable custom fields (schema)
                 </h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div className="space-y-4">
@@ -1385,7 +1855,6 @@ export const AdminUsers = () => {
                 </div>
               </div>
             </form>
-          </div>
           </div>
         </div>
       )}

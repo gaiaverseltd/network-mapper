@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { twMerge } from "tailwind-merge";
+import { resolveDisplayProfileImageUrl } from "../lib/profile-image-url.js";
 
 /**
  * Avatar Component - Reusable profile image component
@@ -39,11 +40,14 @@ function Avatar({
     }
   };
 
+  const displaySrc =
+    resolveDisplayProfileImageUrl(src, fallback) || fallback || "";
+
   const sizeClass = sizeClasses[size] || sizeClasses.md;
   const wrapperClass = `flex-shrink-0 overflow-hidden rounded-full ${sizeClass}`;
   const avatarContent = (
     <img
-      src={src || fallback}
+      src={displaySrc}
       alt={alt}
       className={twMerge(
         "w-full h-full rounded-full object-contain object-center transition-all duration-200",

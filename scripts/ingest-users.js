@@ -23,6 +23,7 @@ import { readFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { parse } from "csv-parse/sync";
+import { legacyToFlatDirectoryFields } from "../src/lib/profile-directory-fields.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, "..");
@@ -111,45 +112,21 @@ function memberJsonToProfile(memberId, member, uid, username) {
   const firstName = snap.firstName || "";
   const lastName = snap.lastName || "";
   const name = [firstName, lastName].filter(Boolean).join(" ") || email || username;
-  const titleStr = arrayToLine(snap.title);
-  const org = (snap.organization || "").trim();
-  const classificationStr = arrayToLine(snap.classification);
-  const loc = snap.location && typeof snap.location === "object" ? snap.location : {};
-  const country = arrayToLine(loc.countries);
-  const state = (loc.stateProvince || "").trim();
-  const city = (loc.city || "").trim();
-  const bioParts = [titleStr, org, classificationStr].filter(Boolean);
-  const bio = bioParts.join(" • ") || "";
-
-  const customFields = {};
-  const cf = (k, v) => {
-    const s = v == null ? "" : String(v).trim();
-    if (s) customFields[k] = s;
-  };
-  cf("phone", snap.phone);
-  cf("gender", snap.gender);
-  cf("title", titleStr);
-  cf("organization", org);
-  cf("classification", classificationStr);
-  cf("country", country);
-  cf("state", state);
-  cf("city", city);
-  cf("profileUrl", arrayToLine(snap.profileWebsites));
-  cf("fieldsOfStudy", arrayToLine(snap.fieldsOfStudy));
-  cf("areasOfInterest", arrayToLine(snap.areasOfInterest));
-  cf("topicsOfInterest", arrayToLine(snap.topicsOfInterest));
-  cf("networkActivities", arrayToLine(snap.networkActivities));
-  cf("languagesSpoken", arrayToLine(snap.languagesSpoken));
-  cf("countryOfOrigin", arrayToLine(snap.countryOfOrigin));
-  cf("workCountries", arrayToLine(snap.workCountries));
-  if (snap.status) cf("memberStatus", String(snap.status));
+  const directory = legacyToFlatDirectoryFields({
+    memberData: snap,
+    customFields: {},
+    name,
+    email,
+    bio: "",
+  });
 
   return {
+    ...directory,
     email,
     name,
     uid,
     dateofbirth: "",
-    bio,
+    bio: directory.bio || "",
     report: [],
     restricted: false,
     privacy: false,
@@ -164,11 +141,10 @@ function memberJsonToProfile(memberId, member, uid, username) {
     username,
     post: [],
     classificationTagId: null,
-    customFields,
+    customFields: {},
     profileResources: [],
     importSource: "members.json",
     sourceMemberId: memberId,
-    memberData: snap,
   };
 }
 

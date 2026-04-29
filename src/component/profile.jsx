@@ -6,6 +6,7 @@ import { MdEdit as EditIcon } from "react-icons/md";
 import { MdInsertDriveFile as FileIcon } from "react-icons/md";
 import { Popupitem } from "../ui/popup";
 import { useUserdatacontext } from "../service/context/usercontext";
+import { resolveDisplayProfileImageUrl } from "../lib/profile-image-url.js";
 import {
   Create_notification,
   updateprofileuserdata,
@@ -30,7 +31,10 @@ import Report from "../layout/profile/report";
 import FirstPost from "../layout/profile/firstPost";
 import Menu from "../layout/profile/menu";
 import MemberImportDetails from "./member-import-details";
-import ImportedProfileSummary, { getImportedSummaryRows } from "./imported-profile-summary";
+import ImportedProfileSummary, {
+  DIRECTORY_VALUE_EMPTY,
+  getProfileCustomFieldEffectiveValue,
+} from "./imported-profile-summary";
 export const Profile = ({ username }) => {
   const progress = new ProgressBar();
   const navigate = useNavigate();
@@ -211,7 +215,10 @@ export const Profile = ({ username }) => {
         {/* Left: main profile data */}
         <div className="sm:my-10 sm:space-y-3 space-y-1 flex flex-col text-left sm:m-5 m-3">
           <img
-            src={profileuserdata?.profileImageURL || defaultprofileimage}
+            src={resolveDisplayProfileImageUrl(
+              profileuserdata?.profileImageURL,
+              defaultprofileimage,
+            )}
             onError={(e) => {
               e.target.src = defaultprofileimage;
             }}
@@ -260,9 +267,10 @@ export const Profile = ({ username }) => {
             {classificationLabel}
             </p>
           )}
-          {getImportedSummaryRows(profileuserdata).length > 0 && (
+          {profileuserdata && (
             <ImportedProfileSummary
               profile={profileuserdata}
+              showEmptyFields
               className="mt-3 pt-3 border-t border-border-default"
             />
           )}
@@ -358,68 +366,94 @@ export const Profile = ({ username }) => {
 
         {/* Right: custom fields */}
         <div className="sm:my-10 sm:space-y-3 space-y-1 flex flex-col text-left sm:m-5 m-3">
-          {profileCustomFieldDefs
-            .filter((f) => profileuserdata?.customFields?.[f.key] != null && profileuserdata.customFields[f.key] !== "")
-            .map((f) => (
+          {profileCustomFieldDefs.map((f) => {
+            const raw = getProfileCustomFieldEffectiveValue(profileuserdata, f.key);
+            const display =
+              raw && String(raw).trim() !== "" && raw !== DIRECTORY_VALUE_EMPTY
+                ? String(raw).trim()
+                : DIRECTORY_VALUE_EMPTY;
+            const isEmpty = display === DIRECTORY_VALUE_EMPTY;
+            return (
               <div key={f.id} className="text-sm text-gray-400 mt-1">
                 <span className="text-gray-500">{f.label}:</span>{" "}
                 {f.type === "url" ? (
-                  <a
-                    href={profileuserdata.customFields[f.key]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent-500 hover:underline"
-                  >
-                    {profileuserdata.customFields[f.key]}
-                  </a>
-                ) : f.type === "phone" ? (
-                  <a
-                    href={`tel:${profileuserdata.customFields[f.key].replace(/\s/g, "")}`}
-                    className="text-accent-500 hover:underline"
-                  >
-                    {profileuserdata.customFields[f.key]}
-                  </a>
-                ) : f.type === "lookup" ? (
-                  lookupTagLabels[profileuserdata.customFields[f.key]] ?? profileuserdata.customFields[f.key]
-                ) : f.type === "image" ? (
-                  <span className="inline-block mt-1">
+                  isEmpty ? (
+                    <span className="text-text-tertiary">{DIRECTORY_VALUE_EMPTY}</span>
+                  ) : (
                     <a
-                      href={profileuserdata.customFields[f.key]}
+                      href={display}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-accent-500 hover:underline inline-block"
+                      className="text-accent-500 hover:underline"
                     >
-                      <img
-                        src={profileuserdata.customFields[f.key]}
-                        alt={f.label}
-                        className="max-h-24 rounded border border-border-default object-cover"
-                      />
+                      {display}
                     </a>
-                    <span className="block text-sm text-text-tertiary mt-0.5 truncate max-w-[220px]">
-                      {getFileNameFromStorageUrl(profileuserdata.customFields[f.key])}
+                  )
+                ) : f.type === "phone" ? (
+                  isEmpty ? (
+                    <span className="text-text-tertiary">{DIRECTORY_VALUE_EMPTY}</span>
+                  ) : (
+                    <a
+                      href={`tel:${display.replace(/\s/g, "")}`}
+                      className="text-accent-500 hover:underline"
+                    >
+                      {display}
+                    </a>
+                  )
+                ) : f.type === "lookup" ? (
+                  isEmpty ? (
+                    <span className="text-text-tertiary">{DIRECTORY_VALUE_EMPTY}</span>
+                  ) : (
+                    lookupTagLabels[display] ?? display
+                  )
+                ) : f.type === "image" ? (
+                  isEmpty ? (
+                    <span className="text-text-tertiary">{DIRECTORY_VALUE_EMPTY}</span>
+                  ) : (
+                    <span className="inline-block mt-1">
+                      <a
+                        href={display}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent-500 hover:underline inline-block"
+                      >
+                        <img
+                          src={display}
+                          alt={f.label}
+                          className="max-h-24 rounded border border-border-default object-cover"
+                        />
+                      </a>
+                      <span className="block text-sm text-text-tertiary mt-0.5 truncate max-w-[220px]">
+                        {getFileNameFromStorageUrl(display)}
+                      </span>
                     </span>
-                  </span>
+                  )
                 ) : f.type === "file" ? (
-                  <a
-                    href={profileuserdata.customFields[f.key]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-accent-500 hover:underline"
-                  >
-                    <FileIcon className="flex-shrink-0 text-lg text-text-secondary" />
-                    <span className="truncate max-w-[220px]">
-                      {getFileNameFromStorageUrl(profileuserdata.customFields[f.key])}
-                    </span>
-                  </a>
+                  isEmpty ? (
+                    <span className="text-text-tertiary">{DIRECTORY_VALUE_EMPTY}</span>
+                  ) : (
+                    <a
+                      href={display}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-accent-500 hover:underline"
+                    >
+                      <FileIcon className="flex-shrink-0 text-lg text-text-secondary" />
+                      <span className="truncate max-w-[220px]">
+                        {getFileNameFromStorageUrl(display)}
+                      </span>
+                    </a>
+                  )
                 ) : f.type === "note" ? (
                   <pre className="mt-0.5 whitespace-pre-wrap font-sans text-inherit">
-                    {profileuserdata.customFields[f.key]}
+                    {display}
                   </pre>
                 ) : (
-                  profileuserdata.customFields[f.key]
+                  display
                 )}
               </div>
-            ))}
+            );
+          })}
         </div>
 
         {profileuserdata?.memberData && (

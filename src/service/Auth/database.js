@@ -1,3 +1,4 @@
+import { normalizeProfileDocProfileImage } from "../../lib/profile-image-url.js";
 import { auth, firestore, storage } from ".";
 import { sendNotificationEmail } from "../email/emailService.js";
 import {
@@ -184,12 +185,12 @@ export const get_userdata = async (uid) => {
     const byId = await getDoc(doc(firestore, COLLECTION_PROFILES, uid));
     if (byId.exists()) {
       const data = { id: byId.id, ...byId.data() };
-      return data;
+      return normalizeProfileDocProfileImage(data);
     }
     const profile = await queryOne(profilesRef(), "uid", uid);
     if (profile) {
       await setDoc(doc(firestore, COLLECTION_PROFILES, uid), { ...profile });
-      return { ...profile, id: uid };
+      return normalizeProfileDocProfileImage({ ...profile, id: uid });
     }
     return null;
   } catch (err) {
@@ -212,7 +213,8 @@ export const Get_notification = async (uid) => {
 };
 export const get_userdatabyname = async (username) => {
   try {
-    return await queryOne(profilesRef(), "username", username.trim()) ?? null;
+    const row = await queryOne(profilesRef(), "username", username.trim());
+    return row ? normalizeProfileDocProfileImage(row) : null;
   } catch (err) {
     console.error("get_userdatabyname:", err);
     return null;
@@ -488,7 +490,7 @@ export const getallprofile = async () => {
     publicProfiles.sort((a, b) =>
       (a?.name ?? a?.username ?? "").localeCompare(b?.name ?? b?.username ?? "", undefined, { sensitivity: "base" })
     );
-    return publicProfiles;
+    return publicProfiles.map((p) => normalizeProfileDocProfileImage(p));
   } catch (err) {
     console.error("getallprofile:", err);
     return [];
@@ -514,7 +516,9 @@ export const getNonAdminProfilesPaginated = async (pageSize = PAGE_SIZE, lastDoc
     if (lastDoc) constraints.push(startAfter(lastDoc));
     const q = query(profilesRef(), ...constraints);
     const snapshot = await getDocs(q);
-    const profiles = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const profiles = snapshot.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .map((p) => normalizeProfileDocProfileImage(p));
     const newLastDoc = snapshot.docs.length === pageSize ? snapshot.docs[snapshot.docs.length - 1] : null;
     return { profiles, lastDoc: newLastDoc };
   } catch (err) {
